@@ -3,10 +3,10 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
-from app.core.config import GEMINI_MODEL, GEMINI_MODEL_PRO
+from app.core.config import DEEPSEEK_MODEL, DEEPSEEK_MODEL_PRO
 from app.core.models import GeneratedDocument, NavigatorRequest
 from app.core.prompts import ISO_NAVIGATOR_SYSTEM_PROMPT
-from app.services.gemini import generate_with_gemini
+from app.services.deepseek import generate_with_deepseek
 
 
 async def generate_iso_navigator_document(request: NavigatorRequest) -> GeneratedDocument:
@@ -17,14 +17,14 @@ ORGANIZATION CONTEXT:
 {request.organization_context}
 
 TASK:
-Generate a {request.output_type.value} for {request.iso_standard.value}
+Generate a {request.output_type.value} aligned with applicable ISO management system standards.
 
 SPECIFIC REQUIREMENTS:
 {request.specific_requirements if request.specific_requirements else "Follow standard ISO requirements for this document type"}
 
 DOCUMENT REQUIREMENTS:
 1. Include document control information (version, effective date, owner)
-2. Reference specific {request.iso_standard.value} clauses
+2. Reference specific ISO clause numbers relevant to this document type
 3. Include purpose, scope, responsibilities, procedures
 4. Add measurable objectives and KPIs where applicable
 5. Include implementation guidance
@@ -36,12 +36,12 @@ Generate the complete document in markdown format. At the end, include a JSON se
 - confidence_score: float between 0 and 1
 """
 
-    model = GEMINI_MODEL_PRO if len(request.organization_context) > 1000 else GEMINI_MODEL
-    content = await generate_with_gemini(
+    model = DEEPSEEK_MODEL_PRO if len(request.organization_context) > 1000 else DEEPSEEK_MODEL
+    content = await generate_with_deepseek(
         prompt=prompt,
         system_instruction=ISO_NAVIGATOR_SYSTEM_PROMPT,
         model=model,
-        max_tokens=6144,
+        max_tokens=8192,
     )
 
     clause_matches = re.findall(
@@ -50,11 +50,10 @@ Generate the complete document in markdown format. At the end, include a JSON se
     iso_clauses = list(set(clause_matches))[:10]
 
     return GeneratedDocument(
-        title=f"{request.output_type.value} - {request.iso_standard.value}",
+        title=f"{request.output_type.value}",
         content=content,
         metadata={
             "organization_context": request.organization_context[:200] + "...",
-            "iso_standard": request.iso_standard.value,
             "output_type": request.output_type.value,
             "tone": request.tone,
             "language": request.language,

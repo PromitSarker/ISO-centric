@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.core.config import GEMINI_MODEL
+from app.core.config import DEEPSEEK_MODEL
 from app.core.models import ChatRequest, ChatResponse, GeneratedDocument, NavigatorRequest
 from app.core.prompts import ISO_NAVIGATOR_SYSTEM_PROMPT
 from app.core.session import handle_chat
@@ -27,16 +27,12 @@ async def navigator_chat(request: ChatRequest):
     return await handle_chat(
         request=request,
         system_prompt=ISO_NAVIGATOR_SYSTEM_PROMPT,
-        sources=[
-            f"{request.iso_standard.value} Clauses"
-            if request.iso_standard
-            else "ISO Standards Database"
-        ],
+        sources=["ISO Standards Database"],
         suggested_followups=[
             "Can you elaborate on the implementation steps?",
             "What evidence would an auditor look for?",
             "How does this integrate with other management systems?",
         ],
-        model=GEMINI_MODEL,
+        model=DEEPSEEK_MODEL,
         temperature=0.5,
     )

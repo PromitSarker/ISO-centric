@@ -4,13 +4,12 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.core.config import GEMINI_MODEL_PRO
+from app.core.config import DEEPSEEK_MODEL_PRO
 from app.core.models import (
     BenchmarkAnalysisResponse,
     BenchmarkRequest,
     ChatRequest,
     ChatResponse,
-    ISOStandard,
 )
 from app.core.prompts import BENCHMARK_AI_SYSTEM_PROMPT
 from app.core.session import handle_chat
@@ -29,7 +28,6 @@ async def analyze_compliance_text(request: BenchmarkRequest):
     result = await generate_benchmark_analysis(
         document_text=request.document_text,
         improvement_goal=request.improvement_goal or "General assessment",
-        target_standard=request.target_standard.value,
         document_type=request.document_type,
         department=request.department,
         analysis_id=analysis_id,
@@ -41,13 +39,12 @@ async def analyze_compliance_text(request: BenchmarkRequest):
 async def analyze_compliance_file(
     file: UploadFile = File(...),
     improvement_goal: Optional[str] = Form(None),
-    target_standard: ISOStandard = Form(...),
     document_type: str = Form("Unknown"),
     department: Optional[str] = Form(None),
 ):
     """
     Benchmark AI: Upload and analyze a document file for ISO compliance.
-    Supports PDF, Word, TXT, and images (Gemini-native analysis for PDF/images).
+    Supports PDF, Word, TXT, and images (PDF text extraction supported; images converted where possible).
     """
     allowed_extensions = [".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg"]
     file_ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
@@ -75,7 +72,7 @@ async def analyze_compliance_file(
         document_content = content
     else:
         document_text = await extract_text_from_file(file, content)
-        document_text = document_text[:50000]
+        document_text = document_text[:128000]
         if len(document_text) < 50:
             raise HTTPException(
                 status_code=400,
@@ -88,7 +85,6 @@ async def analyze_compliance_file(
         document_content=document_content,
         mime_type=mime_type,
         improvement_goal=improvement_goal or "General assessment",
-        target_standard=target_standard.value,
         document_type=document_type,
         department=department,
         analysis_id=analysis_id,
@@ -105,17 +101,13 @@ async def benchmark_chat(request: ChatRequest):
     return await handle_chat(
         request=request,
         system_prompt=BENCHMARK_AI_SYSTEM_PROMPT,
-        sources=[
-            f"{request.iso_standard.value} Compliance Requirements"
-            if request.iso_standard
-            else "ISO Standards"
-        ],
+        sources=["ISO Standards"],
         suggested_followups=[
             "How should I prioritize these actions?",
             "What evidence would an auditor look for?",
             "Can you provide a template for this?",
             "How long will implementation take?",
         ],
-        model=GEMINI_MODEL_PRO,
+        model=DEEPSEEK_MODEL_PRO,
         temperature=0.4,
     )

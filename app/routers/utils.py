@@ -2,8 +2,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
-from app.core.client import GeminiClient
-from app.core.config import GEMINI_MODEL
+from app.core.client import DeepSeekClient
+from app.core.config import DEEPSEEK_MODEL
 from app.core.models import ISOStandard
 from app.services.benchmark import get_iso_clause_structure
 
@@ -17,29 +17,30 @@ async def root():
         "message": "ISO Standards AI Assistant API is running",
         "version": "2.0.0",
         "modules": ["ISO Navigator", "Audit Lens", "Benchmark AI"],
-        "gemini_model": GEMINI_MODEL,
+        "deepseek_model": DEEPSEEK_MODEL,
         "documentation": "/docs",
     }
 
 
 @router.get("/api/v1/health")
 async def health_check():
-    """Detailed health check with Gemini connectivity."""
+    """Detailed health check with DeepSeek connectivity."""
     try:
-        client = GeminiClient.get_client()
-        test_response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents="Respond with 'OK' if connection successful",
+        client = DeepSeekClient.get_async_client()
+        test_response = await client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[{"role": "user", "content": "Respond with 'OK' if connection successful"}],
+            max_tokens=10,
         )
-        gemini_status = "connected" if test_response.text else "error"
+        deepseek_status = "connected" if test_response.choices[0].message.content else "error"
     except Exception as e:
-        gemini_status = f"error: {str(e)}"
+        deepseek_status = f"error: {str(e)}"
 
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "gemini_api": gemini_status,
-        "model": GEMINI_MODEL,
+        "deepseek_api": deepseek_status,
+        "model": DEEPSEEK_MODEL,
     }
 
 

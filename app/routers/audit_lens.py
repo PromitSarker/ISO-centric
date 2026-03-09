@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.core.config import GEMINI_MODEL
+from app.core.config import DEEPSEEK_MODEL
 from app.core.models import AuditLensRequest, AuditMaterial, ChatRequest, ChatResponse
 from app.core.prompts import AUDIT_LENS_SYSTEM_PROMPT
 from app.core.session import handle_chat
@@ -27,16 +27,13 @@ async def audit_lens_chat(request: ChatRequest):
     return await handle_chat(
         request=request,
         system_prompt=AUDIT_LENS_SYSTEM_PROMPT,
-        sources=[
-            "ISO 19011:2018 Guidelines",
-            f"{request.iso_standard.value if request.iso_standard else 'ISO Standards'}",
-        ],
+        sources=["ISO 19011:2018 Guidelines", "ISO Standards"],
         suggested_followups=[
             "How would an auditor verify this?",
             "Suggest a root cause analysis approach.",
             "What is the standard requirement for this finding?",
             "How long should corrective action take?",
         ],
-        model=GEMINI_MODEL,
+        model=DEEPSEEK_MODEL,
         temperature=0.4,
     )

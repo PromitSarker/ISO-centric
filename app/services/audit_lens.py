@@ -4,10 +4,10 @@ import json
 import re
 from datetime import datetime
 
-from app.core.config import GEMINI_MODEL_PRO
+from app.core.config import DEEPSEEK_MODEL_PRO
 from app.core.models import AuditLensRequest, AuditMaterial
 from app.core.prompts import AUDIT_LENS_SYSTEM_PROMPT
-from app.services.gemini import generate_with_gemini
+from app.services.deepseek import generate_with_deepseek
 
 
 async def generate_audit_materials(request: AuditLensRequest) -> AuditMaterial:
@@ -16,7 +16,6 @@ async def generate_audit_materials(request: AuditLensRequest) -> AuditMaterial:
     prompt = f"""
 AUDIT PARAMETERS:
 - Stage: {request.stage.value}
-- Standard: {request.iso_standard.value}
 - Material Type: {request.material_type.value}
 - Scope: {request.scope_description if request.scope_description else 'Full management system scope'}
 
@@ -24,11 +23,11 @@ PREVIOUS FINDINGS (JSON):
 {json.dumps(request.previous_audit_findings, indent=2) if request.previous_audit_findings else 'No previous findings provided'}
 
 TASK:
-Generate comprehensive {request.material_type.value} for {request.stage.value} of {request.iso_standard.value} audit.
+Generate comprehensive {request.material_type.value} for {request.stage.value} covering applicable ISO management system standards.
 
 REQUIREMENTS:
 1. Follow ISO 19011 auditing guidelines
-2. Reference specific {request.iso_standard.value} clauses
+2. Reference specific ISO clause numbers relevant to the audit stage and material type
 3. Include risk-based focus areas
 4. Provide clear audit criteria and evidence requirements
 5. Include sampling guidance where applicable
@@ -41,11 +40,11 @@ Generate the complete audit material in markdown format. At the end, include:
 - required_resources: list of resources needed
 """
 
-    content = await generate_with_gemini(
+    content = await generate_with_deepseek(
         prompt=prompt,
         system_instruction=AUDIT_LENS_SYSTEM_PROMPT,
-        model=GEMINI_MODEL_PRO,
-        max_tokens=6144,
+        model=DEEPSEEK_MODEL_PRO,
+        max_tokens=8192,
     )
 
     clause_matches = re.findall(

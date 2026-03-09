@@ -1,49 +1,34 @@
-import asyncio
 import os
+from typing import Optional
 
 from fastapi import HTTPException
-from google import genai
+from openai import AsyncOpenAI
+
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 
-class GeminiClient:
-    """Singleton Gemini client manager."""
+class DeepSeekClient:
+    """Singleton DeepSeek client manager."""
 
-    _client = None
-    _async_client = None
-
-    @classmethod
-    def get_client(cls):
-        if cls._client is None:
-            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-            if not api_key:
-                raise HTTPException(
-                    status_code=500,
-                    detail="GEMINI_API_KEY environment variable not set. Please check your .env file.",
-                )
-            cls._client = genai.Client(api_key=api_key)
-        return cls._client
+    _async_client: Optional[AsyncOpenAI] = None
 
     @classmethod
-    def get_async_client(cls):
+    def get_async_client(cls) -> AsyncOpenAI:
         if cls._async_client is None:
-            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            api_key = os.getenv("DEEPSEEK_API_KEY")
             if not api_key:
                 raise HTTPException(
                     status_code=500,
-                    detail="GEMINI_API_KEY environment variable not set. Please check your .env file.",
+                    detail="DEEPSEEK_API_KEY environment variable not set. Please check your .env file.",
                 )
-            cls._async_client = genai.Client(api_key=api_key).aio
+            cls._async_client = AsyncOpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL)
         return cls._async_client
 
     @classmethod
-    def close(cls):
-        if cls._client:
-            try:
-                cls._client.close()
-            except Exception:
-                pass
+    async def close(cls) -> None:
         if cls._async_client:
             try:
-                asyncio.run(cls._async_client.aclose())
+                await cls._async_client.close()
             except Exception:
                 pass
+            cls._async_client = None

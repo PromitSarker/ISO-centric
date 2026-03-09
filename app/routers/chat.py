@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.core.config import GEMINI_MODEL
+from app.core.config import DEEPSEEK_MODEL
 from app.core.models import ChatRequest, ChatResponse
 from app.core.prompts import GENERAL_CHAT_SYSTEM_PROMPT
 from app.core.session import handle_chat
@@ -25,6 +25,6 @@ async def general_chat(request: ChatRequest):
             "How does this apply to a small organisation?",
             "What documentation is required?",
         ],
-        model=GEMINI_MODEL,
+        model=DEEPSEEK_MODEL,
         temperature=0.5,
     )

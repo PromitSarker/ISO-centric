@@ -7,10 +7,9 @@ from io import BytesIO
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException, UploadFile
-from google.genai import types
 
-from app.core.client import GeminiClient
-from app.core.config import GEMINI_MODEL_PRO
+from app.core.client import DeepSeekClient
+from app.core.config import DEEPSEEK_MODEL_PRO
 from app.core.prompts import BENCHMARK_AI_SYSTEM_PROMPT
 
 
@@ -93,7 +92,7 @@ Annex A: Information Security Controls (93 controls in 4 themes)
 
 
 async def extract_text_from_file(file: UploadFile, content: bytes) -> str:
-    """Extract text from uploaded file (text/Word only; PDF/images handled natively by Gemini)."""
+    """Extract text from uploaded file (text/Word/PDF supported; images not supported)."""
     file_ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
 
     if file_ext in [".txt", ".md"]:
@@ -107,8 +106,17 @@ async def extract_text_from_file(file: UploadFile, content: bytes) -> str:
         except Exception as e:
             return f"[Word extraction failed: {str(e)}]"
 
-    # PDF and images are passed as raw bytes to Gemini
-    return ""
+    if file_ext == ".pdf":
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(BytesIO(content))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            return "\n\n".join(pages)
+        except Exception as e:
+            return f"[PDF extraction failed: {str(e)}]"
+
+    # Images and unsupported formats
+    return f"[Binary file type '{file_ext}' cannot be processed as text. Please convert to PDF or text first.]"
 
 
 async def generate_benchmark_analysis(
@@ -121,7 +129,7 @@ async def generate_benchmark_analysis(
     department: Optional[str] = None,
     analysis_id: str = "",
 ) -> Dict[str, Any]:
-    """Generate a complete ISO benchmark analysis using the Gemini API."""
+    """Generate a complete ISO benchmark analysis using the DeepSeek API."""
 
     clause_structure = get_iso_clause_structure(target_standard)
 
@@ -192,8 +200,6 @@ async def generate_benchmark_analysis(
         ],
     }
 
-    contents = []
-
     prompt = f"""
 DOCUMENT ANALYSIS REQUEST
 =========================
@@ -210,7 +216,6 @@ CLAUSE STRUCTURE TO EVALUATE:
 
 TASK:
 Perform comprehensive ISO compliance analysis and return structured JSON matching the schema.
-Analyze binary content (PDF/Image) directly if provided; otherwise use the supplied text.
 
 ANALYSIS REQUIREMENTS:
 1. OVERALL SCORING — overall_score (0-100), grade, compliance_percentage, effectiveness_percentage
@@ -222,29 +227,44 @@ ANALYSIS REQUIREMENTS:
 
 RESPOND ONLY WITH VALID JSON MATCHING THE SCHEMA.
 """
-    contents.append(prompt)
+
+    contents_text = [prompt]
 
     if document_text:
-        contents.append(f"DOCUMENT CONTENT (TEXT):\n{document_text[:45000]}")
+        contents_text.append(f"DOCUMENT CONTENT (TEXT):\n{document_text[:128000]}")
 
     if document_content and mime_type:
-        contents.append(types.Part.from_bytes(data=document_content, mime_type=mime_type))
+        # Binary content cannot be sent directly; attempt text extraction fallback
+        if mime_type == "application/pdf":
+            try:
+                import pypdf
+                reader = pypdf.PdfReader(BytesIO(document_content))
+                pages = [page.extract_text() or "" for page in reader.pages]
+                extracted = "\n\n".join(pages)
+                if extracted.strip():
+                    contents_text.append(f"DOCUMENT CONTENT (extracted from PDF):\n{extracted[:128000]}")
+            except Exception:
+                pass  # Best-effort; analysis proceeds on whatever text is available
+        # Images and other binary types are not supported; skip silently
 
-    client = GeminiClient.get_async_client()
+    combined_prompt = "\n\n".join(contents_text)
+
+    client = DeepSeekClient.get_async_client()
     try:
-        response = await client.models.generate_content(
-            model=GEMINI_MODEL_PRO,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=BENCHMARK_AI_SYSTEM_PROMPT,
-                temperature=0.1,
-                top_p=0.9,
-                max_output_tokens=8192,
-                response_mime_type="application/json",
-                response_json_schema=response_schema,
-            ),
+        response = await client.chat.completions.create(
+            model=DEEPSEEK_MODEL_PRO,
+            messages=[
+                {
+                    "role": "system",
+                    "content": BENCHMARK_AI_SYSTEM_PROMPT + "\n\nYou MUST respond with valid JSON only, matching the required schema exactly.",
+                },
+                {"role": "user", "content": combined_prompt},
+            ],
+            temperature=0.1,
+            max_tokens=8192,
+            response_format={"type": "json_object"},
         )
-        result = json.loads(response.text)
+        result = json.loads(response.choices[0].message.content)
         result["standard_analyzed"] = target_standard
         result["analysis_timestamp"] = datetime.utcnow().isoformat()
         result["analysis_id"] = analysis_id

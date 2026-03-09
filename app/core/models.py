@@ -67,7 +67,6 @@ class NavigatorRequest(BaseModel):
         min_length=10,
         max_length=5000,
     )
-    iso_standard: ISOStandard
     output_type: NavigatorOutputType
     specific_requirements: Optional[str] = Field(None, max_length=2000)
     tone: Optional[str] = Field("professional", description="Document tone (professional, formal, technical)")
@@ -76,7 +75,6 @@ class NavigatorRequest(BaseModel):
 
 class AuditLensRequest(BaseModel):
     stage: AuditStage
-    iso_standard: ISOStandard
     material_type: AuditMaterialType
     previous_audit_findings: Optional[Dict[str, Any]] = Field(None)
     scope_description: Optional[str] = Field(None, max_length=2000)
@@ -88,7 +86,6 @@ class BenchmarkRequest(BaseModel):
         description="Text content from document. Optional if binary content is processed.",
         max_length=50000,
     )
-    target_standard: ISOStandard
     improvement_goal: Optional[str] = Field(None, max_length=1000)
     document_type: Optional[str] = Field("Unknown", description="Type of document (Policy, Procedure, Record, etc.)")
     department: Optional[str] = None
@@ -100,7 +97,6 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
-    iso_standard: Optional[ISOStandard] = None
     context: Optional[Dict[str, Any]] = None
     session_id: Optional[str] = Field(
         None,
@@ -187,3 +183,38 @@ class ChatResponse(BaseModel):
         ...,
         description="Pass this back in subsequent requests to continue the conversation.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Quiz Models
+# ---------------------------------------------------------------------------
+
+class QuizRequest(BaseModel):
+    context: Dict[str, Any] = Field(
+        ...,
+        description="JSON object containing the topic, subject matter, or any structured content to generate quiz questions from.",
+    )
+    num_questions: Optional[int] = Field(5, ge=1, le=20, description="Number of questions to generate (1–20).")
+    difficulty: Optional[str] = Field(
+        "intermediate",
+        description="Difficulty level: 'easy', 'intermediate', or 'hard'.",
+    )
+
+
+class QuizQuestion(BaseModel):
+    question: str = Field(..., description="The quiz question text.")
+    options: Dict[str, str] = Field(
+        ...,
+        description="Answer options keyed A–D, e.g. {'A': '...', 'B': '...', 'C': '...', 'D': '...'}.",
+    )
+    correct_answer: str = Field(..., description="The key of the correct option ('A', 'B', 'C', or 'D').")
+    explanation: Optional[str] = Field(None, description="Brief explanation of why the answer is correct.")
+
+
+class QuizResponse(BaseModel):
+    quiz_title: str
+    iso_standard: Optional[str]
+    total_questions: int
+    difficulty: str
+    questions: List[QuizQuestion]
+    generated_at: str
