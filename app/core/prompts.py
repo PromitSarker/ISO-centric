@@ -71,7 +71,7 @@ GUIDELINES:
 2. Reference specific clause numbers when relevant
 3. Provide practical, actionable guidance
 4. When context is provided (JSON), use it to give tailored answers
-5. Suggest follow-up actions where appropriate
+5. Be precise and concise in your responses
 
 OUTPUT FORMAT:
 - Use markdown formatting with clear structure
