@@ -98,6 +98,10 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
     context: Optional[Dict[str, Any]] = None
+    iso_standard: Optional[ISOStandard] = Field(
+        None,
+        description="Optional ISO standard to focus the conversation on (e.g. ISO 9001:2015).",
+    )
     session_id: Optional[str] = Field(
         None,
         description="Session ID for multi-turn memory. Returned on first call; pass it back to continue the conversation.",
