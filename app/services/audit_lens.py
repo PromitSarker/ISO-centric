@@ -44,7 +44,7 @@ Generate the complete audit material in markdown format. At the end, include:
         prompt=prompt,
         system_instruction=AUDIT_LENS_SYSTEM_PROMPT,
         model=DEEPSEEK_MODEL_PRO,
-        max_tokens=8192,
+        max_tokens=4096,
     )
 
     clause_matches = re.findall(

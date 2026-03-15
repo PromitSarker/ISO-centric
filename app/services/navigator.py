@@ -41,7 +41,7 @@ Generate the complete document in markdown format. At the end, include a JSON se
         prompt=prompt,
         system_instruction=ISO_NAVIGATOR_SYSTEM_PROMPT,
         model=model,
-        max_tokens=8192,
+        max_tokens=4096,
     )
 
     clause_matches = re.findall(

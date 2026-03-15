@@ -17,6 +17,8 @@ from app.services.benchmark import extract_text_from_file, generate_benchmark_an
 
 router = APIRouter(prefix="/api/v1/benchmark", tags=["Benchmark AI"])
 
+BENCHMARK_MAX_INPUT_CHARS = int(os.getenv("BENCHMARK_MAX_INPUT_CHARS", "15000"))
+
 
 @router.post("/analyze-text", response_model=BenchmarkAnalysisResponse)
 async def analyze_compliance_text(request: BenchmarkRequest):
@@ -24,9 +26,15 @@ async def analyze_compliance_text(request: BenchmarkRequest):
     Benchmark AI: Analyze text content for ISO compliance.
     Evaluates against ISO requirements, identifies gaps, and grades the document.
     """
+    if not request.document_text or len(request.document_text.strip()) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="document_text is required and must be at least 50 characters.",
+        )
+
     analysis_id = f"bench_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
     result = await generate_benchmark_analysis(
-        document_text=request.document_text,
+        document_text=request.document_text[:BENCHMARK_MAX_INPUT_CHARS],
         improvement_goal=request.improvement_goal or "General assessment",
         document_type=request.document_type,
         department=request.department,
@@ -46,7 +54,7 @@ async def analyze_compliance_file(
     Benchmark AI: Upload and analyze a document file for ISO compliance.
     Supports PDF, Word, TXT, and images (PDF text extraction supported; images converted where possible).
     """
-    allowed_extensions = [".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg"]
+    allowed_extensions = [".pdf", ".doc", ".docx", ".txt"]
     file_ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
 
     if file_ext not in allowed_extensions:
@@ -72,7 +80,7 @@ async def analyze_compliance_file(
         document_content = content
     else:
         document_text = await extract_text_from_file(file, content)
-        document_text = document_text[:128000]
+        document_text = document_text[:BENCHMARK_MAX_INPUT_CHARS]
         if len(document_text) < 50:
             raise HTTPException(
                 status_code=400,

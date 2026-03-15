@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from typing import Any, Dict, List
@@ -47,11 +48,19 @@ async def handle_chat(
 
     client = DeepSeekClient.get_async_client()
     try:
-        response = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=8192,
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=2048,
+            ),
+            timeout=120,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Chat response timed out. Please retry or simplify your question.",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat generation failed: {str(e)}")
