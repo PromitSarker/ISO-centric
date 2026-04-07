@@ -90,6 +90,7 @@ GUIDELINES:
 5. When an ISO standard is specified, reference relevant clause numbers in the explanations.
 6. Adjust vocabulary and complexity according to the requested difficulty level.
 7. Each question MUST include a concise explanation for the correct answer.
+8. NEVER ask generic or meta-questions (e.g., "What is this quiz about?" or "What is the main topic of the context?"). All questions must be specific, substantive, and strictly based on the provided context details.
 
 LENGTH RULES — strictly enforced:
 - Each answer option: maximum 10 words. Be direct and specific (e.g. "Documented information control", "Internal audit process").
