@@ -90,7 +90,8 @@ GUIDELINES:
 5. When an ISO standard is specified, reference relevant clause numbers in the explanations.
 6. Adjust vocabulary and complexity according to the requested difficulty level.
 7. Each question MUST include a concise explanation for the correct answer.
-8. NEVER ask generic or meta-questions (e.g., "What is this quiz about?" or "What is the main topic of the context?"). All questions must be specific, substantive, and strictly based on the provided context details.
+8. NEVER ask generic or meta-questions (e.g., "What is this quiz about?", "Identify the main topic", or "What industry focus?"). Instead, treat the provided context as a set of ISO topics/subjects. For each topic, leverage your deep expertise to generate technical, substantive questions that test understanding of specific ISO clauses, compliance requirements, risk assessments, and implementation best practices. Do not just paraphrase the context; expand on it with professional depth and technical detail.
+9. Ensure technical accuracy: All questions, options, and explanations must be factually correct according to the latest versions of the ISO standards referenced. Avoid any hallucinations.
 
 LENGTH RULES — strictly enforced:
 - Each answer option: maximum 10 words. Be direct and specific (e.g. "Documented information control", "Internal audit process").
