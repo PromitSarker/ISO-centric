@@ -74,7 +74,7 @@ async def generate_quiz(
     iso_standard: Optional[str] = None,
     difficulty: str = "intermediate",
 ) -> Dict[str, Any]:
-    """Generate a multiple-choice quiz from the provided context JSON.
+    """Generate a multiple-choice quiz from the provided context JSON. This context can be module names, in which subject you have to generate quiz for the ISO learners.
 
     Previously seen questions (up to the last MAX_HISTORY) are injected into
     the prompt so the model actively avoids repeating them.
@@ -96,9 +96,14 @@ async def generate_quiz(
         f"{standard_line}"
         f"Difficulty: {difficulty}\n"
         f"Number of questions: {num_questions}\n\n"
-        f"Context:\n{json.dumps(context, indent=2)}"
-        f"{avoid_block}\n\n"
-        "Generate a quiz based strictly on the context above. "
+        f"Subject/Context:\n{json.dumps(context, indent=2)}\n\n"
+        f"{avoid_block}"
+        "You are generating a quiz for an ISO-centric platform. "
+        "Based on the subject name or context provided above, generate a set of professional, high-quality "
+        "multiple-choice questions that specifically test knowledge of relevant ISO standards, "
+        "clauses, compliance requirements, and industry-standard practices. "
+        "Do NOT generate generic logic or general knowledge questions. "
+        "Focus on technical details and practical applications of ISO management systems. "
         "Return the JSON object as described in the system instructions."
     )
 
