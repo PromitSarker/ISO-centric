@@ -15,7 +15,7 @@ async def generate_audit_materials(request: AuditLensRequest) -> AuditMaterial:
 
     prompt = f"""
 AUDIT PARAMETERS:
-- Stage: {request.stage.value}
+- Stage: {request.stage}
 - Material Type: {request.material_type.value}
 - Scope: {request.scope_description if request.scope_description else 'Full management system scope'}
 
@@ -23,7 +23,7 @@ PREVIOUS FINDINGS (JSON):
 {json.dumps(request.previous_audit_findings, indent=2) if request.previous_audit_findings else 'No previous findings provided'}
 
 TASK:
-Generate comprehensive {request.material_type.value} for {request.stage.value} covering applicable ISO management system standards.
+Generate comprehensive {request.material_type.value} for {request.stage} covering applicable ISO management system standards.
 
 REQUIREMENTS:
 1. Follow ISO 19011 auditing guidelines
@@ -53,7 +53,7 @@ Generate the complete audit material in markdown format. At the end, include:
     iso_clauses = list(set(clause_matches))[:15]
 
     return AuditMaterial(
-        stage=request.stage.value,
+        stage=request.stage,
         material_type=request.material_type.value,
         content=content,
         iso_clauses_covered=iso_clauses or ["4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"],

@@ -18,7 +18,7 @@ OUTPUT FORMAT:
 """
 
 AUDIT_LENS_SYSTEM_PROMPT = """You are a certified Lead Auditor (IRCA/FSC) with expertise in ISO management systems.
-Your task is to generate comprehensive audit materials that follow ISO 19011 guidelines.
+Your task is to generate comprehensive audit materials that follow ISO guidelines.
 
 GUIDELINES:
 1. Follow risk-based auditing principles
