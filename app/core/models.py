@@ -19,13 +19,6 @@ class ISOStandard(str, Enum):
     ISO_50001_2018 = "ISO 50001:2018"
 
 
-class AuditStage(str, Enum):
-    PLANNING = "Stage 1: Planning"
-    EXECUTION = "Stage 2: Execution"
-    REPORTING = "Stage 3: Reporting"
-    FOLLOW_UP = "Stage 4: Follow-Up"
-
-
 class AuditMaterialType(str, Enum):
     AUDIT_CHARTER = "Audit Charter"
     CHECKLIST = "Audit Checklist"
@@ -74,7 +67,7 @@ class NavigatorRequest(BaseModel):
 
 
 class AuditLensRequest(BaseModel):
-    stage: AuditStage
+    stage: str
     material_type: AuditMaterialType
     previous_audit_findings: Optional[Dict[str, Any]] = Field(None)
     scope_description: Optional[str] = Field(None, max_length=2000)

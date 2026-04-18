@@ -26,7 +26,7 @@ def _parse_context(raw_context: str) -> dict:
 async def generate_quiz_endpoint(
     context: str = Form("{}", description="JSON string of context data"),
     num_questions: int = Form(5, description="How many questions to generate (1–20)"),
-    difficulty: str = Form("intermediate", description="easy, intermediate, or hard"),
+    difficulty: str = Form("hard", description="easy, intermediate, or hard"),
     files: Optional[List[UploadFile]] = File(None),
 ):
     """
@@ -36,7 +36,7 @@ async def generate_quiz_endpoint(
     - `context` *(optional)*: JSON string describing the topic, subject matter,
       or structured content the quiz should be based on.
     - `num_questions`: How many questions to generate (1–20, default 5).
-    - `difficulty`: `"easy"`, `"intermediate"` (default), or `"hard"`.
+    - `difficulty`: `"easy"`, `"intermediate"`, or `"hard"` (default).
     - `files`: Optional file uploads to generate the quiz from.
 
     **Output:**
