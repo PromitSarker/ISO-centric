@@ -8,7 +8,7 @@ from typing import Any, Deque, Dict, Optional
 
 from app.core.config import DEEPSEEK_MODEL_PRO
 from app.core.prompts import QUIZ_GENERATION_SYSTEM_PROMPT
-from app.services.deepseek import analyze_with_deepseek
+from app.services.deepseek import analyze_with_deepseek, analyze_stream_with_deepseek
 
 # ---------------------------------------------------------------------------
 # In-memory question history
@@ -16,6 +16,10 @@ from app.services.deepseek import analyze_with_deepseek
 # Keyed by a hash of (context + iso_standard).  Stores up to MAX_HISTORY
 # question strings per key so the LLM is told explicitly to avoid them.
 MAX_HISTORY = 30
+MAX_QUIZ_QUESTIONS = 30
+MAX_AVOID_QUESTIONS_IN_PROMPT = 12
+MAX_AVOID_QUESTION_CHARS = 160
+MAX_PROMPT_CONTEXT_CHARS = 8000
 
 _question_history: Dict[str, Deque[str]] = defaultdict(lambda: deque(maxlen=MAX_HISTORY))
 
@@ -32,6 +36,24 @@ def _record_questions(key: str, questions: list[Dict[str, Any]]) -> None:
         text = q.get("question", "").strip()
         if text:
             _question_history[key].append(text)
+
+
+def _trim_text(value: str, max_chars: int) -> str:
+    if len(value) <= max_chars:
+        return value
+    return f"{value[:max_chars]}..."
+
+
+def _compact_context_for_prompt(context: Dict[str, Any]) -> str:
+    serialized = json.dumps(context, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    if len(serialized) <= MAX_PROMPT_CONTEXT_CHARS:
+        return serialized
+    return f"{serialized[:MAX_PROMPT_CONTEXT_CHARS]}...[TRUNCATED]"
+
+
+def _normalize_difficulty(difficulty: str) -> str:
+    value = (difficulty or "intermediate").strip().lower()
+    return value if value in {"easy", "intermediate", "hard"} else "intermediate"
 
 QUIZ_RESPONSE_SCHEMA: Dict[str, Any] = {
     "type": "object",
@@ -79,13 +101,19 @@ async def generate_quiz(
     Previously seen questions (up to the last MAX_HISTORY) are injected into
     the prompt so the model actively avoids repeating them.
     """
+    num_questions = max(1, min(num_questions, MAX_QUIZ_QUESTIONS))
+    difficulty = _normalize_difficulty(difficulty)
+
     key = _context_key(context, iso_standard)
-    seen = list(_question_history[key])  # snapshot before generation
+    seen = list(_question_history[key])[-MAX_AVOID_QUESTIONS_IN_PROMPT:]
+    context_payload = _compact_context_for_prompt(context)
 
     standard_line = f"ISO Standard: {iso_standard}\n" if iso_standard else ""
     avoid_block = ""
     if seen:
-        formatted = "\n".join(f"  {i + 1}. {q}" for i, q in enumerate(seen))
+        formatted = "\n".join(
+            f"  {i + 1}. {_trim_text(q, MAX_AVOID_QUESTION_CHARS)}" for i, q in enumerate(seen)
+        )
         avoid_block = (
             "\n\nIMPORTANT — The following questions have ALREADY been asked. "
             "Do NOT repeat or closely paraphrase any of them:\n"
@@ -95,20 +123,19 @@ async def generate_quiz(
     prompt = (
         f"{standard_line}"
         f"Difficulty: {difficulty}\n"
-        f"Number of questions: {num_questions}\n\n"
-        f"Target ISO Knowledge Area (Topic Anchor):\n{json.dumps(context, indent=2)}\n\n"
+        f"Number of questions: {num_questions}\n"
+        "Return exactly the requested number of questions.\n\n"
+        f"Target ISO Knowledge Area (Topic Anchor):\n{context_payload}\n"
         f"{avoid_block}"
-        "CRITICAL INSTRUCTIONS — READ CAREFULLY:\n"
-        "1. Interpret the input above strictly as a focus area for a professional ISO assessment.\n"
-        "2. ABSOLUTELY PROHIBITED: Do not ask questions about the input JSON itself or the 'context' (e.g., NEVER ask 'What industry is mentioned?' or 'Identify the topic').\n"
-        "3. PROMPT: Leverage your expertise as a Senior ISO Auditor to generate technical, high-level questions about relevant ISO standards, specific clause requirements, compliance indicators, and audit best practices related to the topics provided.\n"
-        "4. Depth: Ensure questions test specialized terminology and practical application of ISO management systems.\n"
-        "5. Final check: Before outputting the JSON, verify that EVERY question is substantive and technical. If a question is generic or 'meta', replace it with a technical clause-based question immediately.\n"
-        "\nProduce the JSON response now."
+        "Constraints:\n"
+        "1. Ask only advanced ISO clause-application questions.\n"
+        "2. Never ask generic or meta questions about the provided JSON/context.\n"
+        "3. Keep each option concise but technically plausible.\n"
+        "4. Output must be valid JSON matching the required schema exactly."
     )
 
-    # Budget: ~200 tokens per question is generous for short options + explanation
-    max_tokens = min(200 * num_questions + 256, 2048)
+    # Budget tuned for short-format MCQs while supporting up to 30 questions.
+    max_tokens = 8192  # Give it the maximum output tokens the API allows to prevent cutoff
     result = await analyze_with_deepseek(
         prompt=prompt,
         system_instruction=QUIZ_GENERATION_SYSTEM_PROMPT,
@@ -121,8 +148,64 @@ async def generate_quiz(
     result.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
     result.setdefault("iso_standard", iso_standard)
     result.setdefault("difficulty", difficulty)
+    result.setdefault("total_questions", len(result.get("questions", [])))
 
     # Record the newly generated questions so future calls can avoid them
     _record_questions(key, result.get("questions", []))
 
     return result
+
+
+async def generate_quiz_stream(
+    context: Dict[str, Any],
+    num_questions: int = 5,
+    iso_standard: Optional[str] = None,
+    difficulty: str = "intermediate",
+):
+    """Produces a stream of partial JSON text as the LLM generates the quiz."""
+    num_questions = max(1, min(num_questions, MAX_QUIZ_QUESTIONS))
+    difficulty = _normalize_difficulty(difficulty)
+
+    key = _context_key(context, iso_standard)
+    seen = list(_question_history[key])[-MAX_AVOID_QUESTIONS_IN_PROMPT:]
+    context_payload = _compact_context_for_prompt(context)
+
+    standard_line = f"ISO Standard: {iso_standard}\n" if iso_standard else ""
+    avoid_block = ""
+    if seen:
+        formatted = "\n".join(
+            f"  {i + 1}. {_trim_text(q, MAX_AVOID_QUESTION_CHARS)}" for i, q in enumerate(seen)
+        )
+        avoid_block = (
+            "\n\nIMPORTANT — The following questions have ALREADY been asked. "
+            "Do NOT repeat or closely paraphrase any of them:\n"
+            f"{formatted}\n"
+        )
+
+    prompt = (
+        f"{standard_line}"
+        f"Difficulty: {difficulty}\n"
+        f"Number of questions: {num_questions}\n"
+        "Return exactly the requested number of questions.\n\n"
+        f"Target ISO Knowledge Area (Topic Anchor):\n{context_payload}\n"
+        f"{avoid_block}"
+        "Constraints:\n"
+        "1. Ask only advanced ISO clause-application questions.\n"
+        "2. Never ask generic or meta questions about the provided JSON/context.\n"
+        "3. Keep each option concise but technically plausible.\n"
+        "4. Output must be valid JSON matching the required schema exactly."
+    )
+
+    max_tokens = 8192  # Streaming also needs maximum allowance to prevent cutoff
+
+    # We yield chunks back. Question caching cannot easily happen on partial chunks here
+    # without implementing a partial-JSON parser. It could be left to the complete response sync route,
+    # or implemented via a frontend callback if needed. For now, streaming bypasses local caching.
+    async for chunk in analyze_stream_with_deepseek(
+        prompt=prompt,
+        system_instruction=QUIZ_GENERATION_SYSTEM_PROMPT,
+        response_schema=QUIZ_RESPONSE_SCHEMA,
+        model=DEEPSEEK_MODEL_PRO,
+        max_tokens=max_tokens,
+    ):
+        yield chunk

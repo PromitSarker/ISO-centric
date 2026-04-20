@@ -1,11 +1,13 @@
+import asyncio
 import json
 from typing import List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.core.models import QuizResponse
 from app.services.benchmark import extract_text_from_file
-from app.services.quiz import generate_quiz
+from app.services.quiz import generate_quiz, generate_quiz_stream
 
 router = APIRouter(prefix="/api/v1/quiz", tags=["Quiz Generator"])
 
@@ -22,11 +24,23 @@ def _parse_context(raw_context: str) -> dict:
     return parsed
 
 
+async def _extract_uploaded_file(file: UploadFile) -> dict:
+    content = await file.read()
+    try:
+        file_text = await extract_text_from_file(file, content)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to process file {file.filename}: {str(exc)}") from exc
+    return {
+        "file_name": file.filename,
+        "file_text": file_text,
+    }
+
+
 @router.post("/generate", response_model=QuizResponse)
 async def generate_quiz_endpoint(
     context: str = Form("{}", description="JSON string of context data"),
-    num_questions: int = Form(5, description="How many questions to generate (1–20)"),
-    difficulty: str = Form("hard", description="easy, intermediate, or hard"),
+    num_questions: int = Form(5, ge=1, le=30, description="How many questions to generate (1-30)"),
+    difficulty: str = Form("intermediate", description="easy, intermediate, or hard"),
     files: Optional[List[UploadFile]] = File(None),
 ):
     """
@@ -35,8 +49,8 @@ async def generate_quiz_endpoint(
     **Input:**
     - `context` *(optional)*: JSON string describing the topic, subject matter,
       or structured content the quiz should be based on.
-    - `num_questions`: How many questions to generate (1–20, default 5).
-    - `difficulty`: `"easy"`, `"intermediate"`, or `"hard"` (default).
+    - `num_questions`: How many questions to generate (1–30, default 5).
+    - `difficulty`: `"easy"`, `"intermediate"`, or `"hard"` (default: `"intermediate"`).
     - `files`: Optional file uploads to generate the quiz from.
 
     **Output:**
@@ -49,18 +63,7 @@ async def generate_quiz_endpoint(
     parsed_context = _parse_context(context)
 
     if files:
-        uploaded_files_data = []
-        for file in files:
-            content = await file.read()
-            try:
-                file_text = await extract_text_from_file(file, content)
-                uploaded_files_data.append({
-                    "file_name": file.filename,
-                    "file_text": file_text
-                })
-            except Exception as exc:
-                raise HTTPException(status_code=400, detail=f"Failed to process file {file.filename}: {str(exc)}") from exc
-        
+        uploaded_files_data = await asyncio.gather(*[_extract_uploaded_file(file) for file in files])
         parsed_context["uploaded_files"] = uploaded_files_data
 
     result = await generate_quiz(
@@ -69,3 +72,32 @@ async def generate_quiz_endpoint(
         difficulty=difficulty,
     )
     return QuizResponse(**result)
+
+
+@router.post("/generate/stream")
+async def generate_quiz_stream_endpoint(
+    context: str = Form("{}", description="JSON string of context data"),
+    num_questions: int = Form(5, ge=1, le=30, description="How many questions to generate (1-30)"),
+    difficulty: str = Form("intermediate", description="easy, intermediate, or hard"),
+    files: Optional[List[UploadFile]] = File(None),
+):
+    """
+    Quiz Generator Stream — identical to `/generate` but streams the raw JSON string output as it generates.
+    This allows the client to provide immediate feedback and visual progression for the user.
+    """
+    parsed_context = _parse_context(context)
+
+    if files:
+        uploaded_files_data = await asyncio.gather(*[_extract_uploaded_file(file) for file in files])
+        parsed_context["uploaded_files"] = uploaded_files_data
+
+    # Return stream directly. Format is text/event-stream or application/x-ndjson depending on how the frontend prefers it.
+    # We output raw partial JSON text. 
+    return StreamingResponse(
+        generate_quiz_stream(
+            context=parsed_context,
+            num_questions=num_questions,
+            difficulty=difficulty,
+        ),
+        media_type="text/plain",
+    )

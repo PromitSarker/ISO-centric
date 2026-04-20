@@ -16,6 +16,7 @@ from app.core.prompts import BENCHMARK_AI_SYSTEM_PROMPT
 
 BENCHMARK_MAX_INPUT_CHARS = int(os.getenv("BENCHMARK_MAX_INPUT_CHARS", "15000"))
 BENCHMARK_TIMEOUT_SECONDS = int(os.getenv("BENCHMARK_TIMEOUT_SECONDS", "150"))
+FILE_EXTRACT_MAX_CHARS = int(os.getenv("FILE_EXTRACT_MAX_CHARS", "30000"))
 
 
 def get_iso_clause_structure(standard: str) -> str:
@@ -29,18 +30,28 @@ def get_iso_clause_structure(standard: str) -> str:
     return structures.get(standard, "Standard clause structure not available")
 
 
-async def extract_text_from_file(file: UploadFile, content: bytes) -> str:
+def _truncate_text(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars]}..."
+
+
+async def extract_text_from_file(
+    file: UploadFile,
+    content: bytes,
+    max_chars: int = FILE_EXTRACT_MAX_CHARS,
+) -> str:
     """Extract text from uploaded file (text/Word/PDF supported; images not supported)."""
     file_ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
 
     if file_ext in [".txt", ".md"]:
-        return content.decode("utf-8", errors="ignore")
+        return _truncate_text(content.decode("utf-8", errors="ignore"), max_chars)
 
     if file_ext in [".doc", ".docx"]:
         try:
             from docx import Document
             doc = Document(BytesIO(content))
-            return "\n".join([p.text for p in doc.paragraphs])
+            return _truncate_text("\n".join([p.text for p in doc.paragraphs]), max_chars)
         except Exception as e:
             return f"[Word extraction failed: {str(e)}]"
 
@@ -48,8 +59,22 @@ async def extract_text_from_file(file: UploadFile, content: bytes) -> str:
         try:
             import pypdf
             reader = pypdf.PdfReader(BytesIO(content))
-            pages = [page.extract_text() or "" for page in reader.pages]
-            return "\n\n".join(pages)
+            parts = []
+            total_chars = 0
+            for page in reader.pages:
+                page_text = page.extract_text() or ""
+                if not page_text:
+                    continue
+                remaining = max_chars - total_chars
+                if remaining <= 0:
+                    break
+                if len(page_text) > remaining:
+                    page_text = page_text[:remaining]
+                parts.append(page_text)
+                total_chars += len(page_text)
+                if total_chars >= max_chars:
+                    break
+            return "\n\n".join(parts)
         except Exception as e:
             return f"[PDF extraction failed: {str(e)}]"
 

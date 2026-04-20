@@ -16,7 +16,7 @@ class DeepSeekClient:
     def get_async_client(cls) -> AsyncOpenAI:
         if cls._async_client is None:
             api_key = os.getenv("DEEPSEEK_API_KEY")
-            timeout_seconds = float(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "180"))
+            timeout_seconds = float(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "600"))
             if not api_key:
                 raise HTTPException(
                     status_code=500,
