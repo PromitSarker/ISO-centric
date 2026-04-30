@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.client import DeepSeekClient
 from app.core.config import DEEPSEEK_MODEL
-from app.routers import audit_lens, benchmark, chat, navigator, quiz, utils
+from app.routers import audit_lens, benchmark, chat, navigator, quiz, utils, discovery
 
 load_dotenv()
 
@@ -39,6 +39,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
+app.include_router(discovery.router)
 app.include_router(navigator.router)
 app.include_router(audit_lens.router)
 app.include_router(benchmark.router)

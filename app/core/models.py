@@ -215,3 +215,38 @@ class QuizResponse(BaseModel):
     difficulty: str
     questions: List[QuizQuestion]
     generated_at: str
+
+
+# ---------------------------------------------------------------------------
+# Discovery Models (Steps 1 & 2)
+# ---------------------------------------------------------------------------
+
+class OrgContextRequest(BaseModel):
+    text: Optional[str] = Field(None, description="Raw text describing the organization.")
+    url: Optional[str] = Field(None, description="URL of the organization's website to scrape.")
+
+
+class OrgDescriptionOption(BaseModel):
+    what: str = Field(..., description="What the organization does")
+    where: str = Field(..., description="Where it operates")
+    why: str = Field(..., description="Why it exists (mission/vision)")
+    when: str = Field(..., description="When it was established or timeline context")
+    whom: str = Field(..., description="Whom it serves (target audience/customers)")
+
+
+class OrgContextResponse(BaseModel):
+    options: List[OrgDescriptionOption]
+
+
+class IsoSuggestionRequest(BaseModel):
+    category: str = Field(..., description="Category or industry (e.g., 'security', 'quality', 'automotive')")
+
+
+class IsoSuggestionOption(BaseModel):
+    standard: str = Field(..., description="ISO standard code (e.g., 'ISO 27001:2022')")
+    title: str = Field(..., description="Full title of the standard")
+    relevance: str = Field(..., description="Why this standard is relevant to the requested category")
+
+
+class IsoSuggestionResponse(BaseModel):
+    suggestions: List[IsoSuggestionOption]

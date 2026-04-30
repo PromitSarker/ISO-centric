@@ -8,8 +8,8 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Model configuration
 # ---------------------------------------------------------------------------
-DEEPSEEK_MODEL: str = "deepseek-chat"
-DEEPSEEK_MODEL_PRO: str = "deepseek-chat"
+DEEPSEEK_MODEL: str = "deepseek-v4-flash"
+DEEPSEEK_MODEL_PRO: str = "deepseek-v4-flash"
 
 # ---------------------------------------------------------------------------
 # In-memory session store
