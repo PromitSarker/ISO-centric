@@ -246,6 +246,8 @@ class IsoSuggestionOption(BaseModel):
     standard: str = Field(..., description="ISO standard code (e.g., 'ISO 27001:2022')")
     title: str = Field(..., description="Full title of the standard")
     relevance: str = Field(..., description="Why this standard is relevant to the requested category")
+    documents: List[dict] = Field(default_factory=list, description="List of recommended documents with title, clause, and type='document'")
+    records: List[dict] = Field(default_factory=list, description="List of recommended records with title, clause, and type='record'")
 
 
 class IsoSuggestionResponse(BaseModel):
