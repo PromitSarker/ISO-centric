@@ -114,8 +114,9 @@ Data to analyze:
         prompt=prompt,
         system_instruction=system_instruction,
         model=DEEPSEEK_MODEL,
-        max_tokens=2000,
+        max_tokens=4096,
         temperature=0.7,
+        response_format={"type": "json_object"},
     )
     
     # Strip markdown if model mistakenly added it
@@ -151,8 +152,9 @@ Provide 3 to 5 relevant ISO standards. For each, give the standard code, title, 
         prompt=prompt,
         system_instruction=system_instruction,
         model=DEEPSEEK_MODEL,
-        max_tokens=1500,
+        max_tokens=8192,
         temperature=0.5,
+        response_format={"type": "json_object"},
     )
 
     # Strip markdown if model mistakenly added it

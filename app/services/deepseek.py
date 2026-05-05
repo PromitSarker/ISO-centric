@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 
@@ -19,20 +19,25 @@ async def generate_with_deepseek(
     model: str = DEEPSEEK_MODEL,
     temperature: float = 0.3,
     max_tokens: int = 4096,
+    response_format: Optional[Dict[str, str]] = None,
 ) -> str:
     """Generate free-text content using the DeepSeek API."""
     client = DeepSeekClient.get_async_client()
     try:
+        kwargs = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if response_format:
+            kwargs["response_format"] = response_format
+
         response = await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=temperature,
-                max_tokens=max_tokens,
-            ),
+            client.chat.completions.create(**kwargs),
             timeout=DEEPSEEK_CALL_TIMEOUT,
         )
         return response.choices[0].message.content
