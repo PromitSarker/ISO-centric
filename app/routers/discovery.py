@@ -1,12 +1,17 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.models import (
+    AdvancedIsoSuggestionRequest,
     IsoSuggestionRequest,
     IsoSuggestionResponse,
     OrgContextRequest,
     OrgContextResponse,
 )
-from app.services.discovery import generate_org_context, suggest_iso_standards
+from app.services.discovery import (
+    generate_org_context,
+    suggest_advanced_iso_standards,
+    suggest_iso_standards,
+)
 
 router = APIRouter(prefix="/api/v1/discovery", tags=["Discovery"])
 
@@ -38,3 +43,17 @@ async def api_suggest_iso_standards(request: IsoSuggestionRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error suggesting standards.")
+
+
+@router.post("/iso-suggestions/advanced", response_model=IsoSuggestionResponse)
+async def api_suggest_advanced_iso_standards(request: AdvancedIsoSuggestionRequest):
+    """
+    Suggests 3-5 relevant ISO standards based on industry, management level, and department.
+    """
+    try:
+        return await suggest_advanced_iso_standards(request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error suggesting standards.")
+

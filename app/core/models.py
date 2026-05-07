@@ -242,6 +242,12 @@ class IsoSuggestionRequest(BaseModel):
     category: str = Field(..., description="Category or industry (e.g., 'security', 'quality', 'automotive')")
 
 
+class AdvancedIsoSuggestionRequest(BaseModel):
+    industry: str = Field(..., description="Industry of the organization")
+    management_level: str = Field(..., description="Management level (e.g., 'C-level', 'Middle Management')")
+    department: str = Field(..., description="Department of the user (e.g., 'IT', 'HR', 'Operations')")
+
+
 class IsoSuggestionOption(BaseModel):
     standard: str = Field(..., description="ISO standard code (e.g., 'ISO 27001:2022')")
     title: str = Field(..., description="Full title of the standard")
