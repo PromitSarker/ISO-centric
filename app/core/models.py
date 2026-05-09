@@ -239,7 +239,10 @@ class OrgContextResponse(BaseModel):
 
 
 class IsoSuggestionRequest(BaseModel):
-    category: str = Field(..., description="Category or industry (e.g., 'security', 'quality', 'automotive')")
+    category: Optional[str] = Field(
+        None,
+        description="Category or industry (e.g., 'security', 'quality', 'automotive')",
+    )
 
 
 class AdvancedIsoSuggestionRequest(BaseModel):
