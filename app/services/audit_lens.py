@@ -13,17 +13,31 @@ from app.services.deepseek import generate_with_deepseek
 async def generate_audit_materials(request: AuditLensRequest) -> AuditMaterial:
     """Audit Lens: Generate comprehensive audit materials."""
 
+    # Capture any extra JSON data "thrown" at the endpoint
+    extra_data = request.model_extra or {}
+    extra_context_str = (
+        f"\nADDITIONAL CONTEXT (JSON):\n{json.dumps(extra_data, indent=2)}"
+        if extra_data
+        else ""
+    )
+
+    stage_val = request.stage or "General/Unspecified"
+    material_type_val = (
+        request.material_type.value if request.material_type else "Audit Material"
+    )
+
     prompt = f"""
 AUDIT PARAMETERS:
-- Stage: {request.stage}
-- Material Type: {request.material_type.value}
+- Stage: {stage_val}
+- Material Type: {material_type_val}
 - Scope: {request.scope_description if request.scope_description else 'Full management system scope'}
 
 PREVIOUS FINDINGS (JSON):
 {json.dumps(request.previous_audit_findings, indent=2) if request.previous_audit_findings else 'No previous findings provided'}
+{extra_context_str}
 
 TASK:
-Generate comprehensive {request.material_type.value} for {request.stage} covering applicable ISO management system standards.
+Generate comprehensive {material_type_val} for {stage_val} covering applicable ISO management system standards.
 
 REQUIREMENTS:
 1. Follow ISO 19011 auditing guidelines
@@ -31,7 +45,7 @@ REQUIREMENTS:
 3. Include risk-based focus areas
 4. Provide clear audit criteria and evidence requirements
 5. Include sampling guidance where applicable
-6. Consider previous findings in focus areas
+6. Consider previous findings and any additional context in focus areas
 
 Generate the complete audit material in markdown format. At the end, include:
 - iso_clauses_covered: list of clause numbers
@@ -53,8 +67,8 @@ Generate the complete audit material in markdown format. At the end, include:
     iso_clauses = list(set(clause_matches))[:15]
 
     return AuditMaterial(
-        stage=request.stage,
-        material_type=request.material_type.value,
+        stage=stage_val,
+        material_type=material_type_val,
         content=content,
         iso_clauses_covered=iso_clauses or ["4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"],
         next_steps=[
