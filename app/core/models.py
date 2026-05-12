@@ -219,6 +219,48 @@ class QuizResponse(BaseModel):
     generated_at: str
 
 
+class QuizFeedbackRequest(BaseModel):
+    context: Dict[str, Any] = Field(..., description="Context of the quiz.")
+    results: List[Dict[str, Any]] = Field(
+        ...,
+        description="List of results, each containing 'question', 'selected_answer', and 'correct_answer'.",
+    )
+
+
+class CompetencyLevel(BaseModel):
+    code: str
+    title: str
+    summary: str
+
+
+class AnalyticalFeedback(BaseModel):
+    strengths: List[str]
+    weaknesses: List[str]
+    critical_focus_clauses: List[str]
+
+
+class RiskAssessment(BaseModel):
+    risk_level: str
+    impact_description: str
+    mitigation_recommendation: str
+
+
+class LearningRoadmapItem(BaseModel):
+    area: str
+    priority: str
+    resources: List[str]
+    action_item: str
+
+
+class QuizFeedbackResponse(BaseModel):
+    overall_score: str
+    competency_level: CompetencyLevel
+    analytical_feedback: AnalyticalFeedback
+    risk_assessment: RiskAssessment
+    learning_roadmap: List[LearningRoadmapItem]
+    mentor_closing_note: str
+
+
 # ---------------------------------------------------------------------------
 # Discovery Models (Steps 1 & 2)
 # ---------------------------------------------------------------------------

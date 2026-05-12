@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Deque, Dict, Optional
 
 from app.core.config import DEEPSEEK_MODEL_PRO
-from app.core.prompts import QUIZ_GENERATION_SYSTEM_PROMPT
+from app.core.prompts import QUIZ_FEEDBACK_SYSTEM_PROMPT, QUIZ_GENERATION_SYSTEM_PROMPT
 from app.services.deepseek import analyze_with_deepseek, analyze_stream_with_deepseek
 
 # ---------------------------------------------------------------------------
@@ -209,3 +209,89 @@ async def generate_quiz_stream(
         max_tokens=max_tokens,
     ):
         yield chunk
+
+QUIZ_FEEDBACK_RESPONSE_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "overall_score": {"type": "string"},
+        "competency_level": {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string"},
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+            },
+            "required": ["code", "title", "summary"],
+        },
+        "analytical_feedback": {
+            "type": "object",
+            "properties": {
+                "strengths": {"type": "array", "items": {"type": "string"}},
+                "weaknesses": {"type": "array", "items": {"type": "string"}},
+                "critical_focus_clauses": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["strengths", "weaknesses", "critical_focus_clauses"],
+        },
+        "risk_assessment": {
+            "type": "object",
+            "properties": {
+                "risk_level": {"type": "string", "enum": ["Low", "Medium", "High", "Critical"]},
+                "impact_description": {"type": "string"},
+                "mitigation_recommendation": {"type": "string"},
+            },
+            "required": ["risk_level", "impact_description", "mitigation_recommendation"],
+        },
+        "learning_roadmap": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "area": {"type": "string"},
+                    "priority": {"type": "string", "enum": ["High", "Medium", "Low"]},
+                    "resources": {"type": "array", "items": {"type": "string"}},
+                    "action_item": {"type": "string"},
+                },
+                "required": ["area", "priority", "resources", "action_item"],
+            },
+        },
+        "mentor_closing_note": {"type": "string"},
+    },
+    "required": [
+        "overall_score",
+        "competency_level",
+        "analytical_feedback",
+        "risk_assessment",
+        "learning_roadmap",
+        "mentor_closing_note",
+    ],
+}
+
+
+async def generate_quiz_feedback(
+    context: Dict[str, Any],
+    results: list[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Generate detailed professional feedback based on quiz performance."""
+    
+    # Calculate simple score for the prompt context
+    correct_count = sum(1 for r in results if r.get("selected_answer") == r.get("correct_answer"))
+    total_count = len(results)
+    score_pct = (correct_count / total_count * 100) if total_count > 0 else 0
+    
+    prompt = (
+        f"Score: {score_pct:.1f}% ({correct_count}/{total_count})\n\n"
+        f"Context of the Quiz:\n{json.dumps(context, indent=2)}\n\n"
+        f"User Results:\n{json.dumps(results, indent=2)}\n\n"
+        "Please provide a deep-dive analysis of these results. Focus on identifying patterns in the errors "
+        "and correlating them to specific ISO clause weaknesses."
+    )
+
+    result = await analyze_with_deepseek(
+        prompt=prompt,
+        system_instruction=QUIZ_FEEDBACK_SYSTEM_PROMPT,
+        response_schema=QUIZ_FEEDBACK_RESPONSE_SCHEMA,
+        model=DEEPSEEK_MODEL_PRO,
+        max_tokens=4096,
+    )
+
+    return result
