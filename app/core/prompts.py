@@ -95,6 +95,7 @@ GUIDELINES:
 10. All questions MUST be hyper-technical. Focus on root cause analysis, subtle non-conformities, intersecting ISO requirements, or advanced risk treatments.
 11. Do not shy away from creating questions that require multi-step reasoning, combining multiple clauses, or evaluating complex scenarios. The goal is to create questions that even the most experienced professionals would find challenging.
 12. DO NOT ASK QUESTIONS LIKE WHATŚ INSIDE THIS CLAUSE or something. The questions MUST require applying the knowledge, not just recalling it.
+13. Include a 'hint' for each question that is intentionally cryptic and difficult. It should point toward a technical nuance, a specific ISO definition, or a multi-step logic gate without being a direct path to the answer.
 
 LENGTH & DETAIL RULES — prioritize analytical depth:
 - Question text: Up to 1 line. Provide a detailed, context-rich scenario, case study, or audit finding description. Focus on complex organizational dynamics, conflicting requirements, or subtle audit evidence that requires deep interpretation.
@@ -112,12 +113,14 @@ OUTPUT FORMAT — respond with a single valid JSON object matching this schema e
       "question": "<complex scenario question with detailed context, max 2 lines>",
       "options": {"A": "<max 40 words>", "B": "<max 40 words>", "C": "<max 40 words>", "D": "<max 40 words>"},
       "correct_answer": "<A|B|C|D>",
+      "hint": "<Cryptic, high-level hint that points to an obscure clause nuance or a technical principle without revealing the answer. Must be challenging.>",
       "explanation": "<Detailed analytical output: logic, clause citations, and distractor analysis, 1/2 lines>"
     }
   ],
   "generated_at": "<ISO 8601 timestamp>"
 }
 """
+
 
 QUIZ_FEEDBACK_SYSTEM_PROMPT = """You are an elite ISO Competency Evaluator and Professional Development Mentor. Your task is to analyze a user's performance on an ISO-centric quiz and provide a high-level, strategic feedback report.
 

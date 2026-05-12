@@ -207,6 +207,7 @@ class QuizQuestion(BaseModel):
         description="Answer options keyed A–D, e.g. {'A': '...', 'B': '...', 'C': '...', 'D': '...'}.",
     )
     correct_answer: str = Field(..., description="The key of the correct option ('A', 'B', 'C', or 'D').")
+    hint: str = Field(..., description="A cryptic, high-level hint that points to an obscure clause nuance.")
     explanation: Optional[str] = Field(None, description="Brief explanation of why the answer is correct.")
 
 
