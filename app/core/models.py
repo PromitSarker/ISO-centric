@@ -306,3 +306,31 @@ class IsoSuggestionOption(BaseModel):
 
 class IsoSuggestionResponse(BaseModel):
     suggestions: List[IsoSuggestionOption]
+
+
+# ---------------------------------------------------------------------------
+# Audit Lens Models (Phase 1 & 2)
+# ---------------------------------------------------------------------------
+
+class AuditContextOption(BaseModel):
+    scope: str = Field(..., description="The physical and virtual boundaries of the audit.")
+    criteria: str = Field(..., description="The specific ISO Standard required (e.g., ISO 9001, 27001).")
+    objective: str = Field(..., description="What the audit aims to achieve.")
+
+
+class AuditContextResponse(BaseModel):
+    options: List[AuditContextOption]
+
+
+class AuditLensStepRequest(BaseModel):
+    locked_context: AuditContextOption
+    step_number: int = Field(..., ge=1, le=13)
+
+
+class AuditLensStepResponse(BaseModel):
+    step_number: int
+    title: str
+    stage: str  # Plan, Do, Check, Act
+    guidance: str = Field(..., description="Educational instructions (AI Guidance).")
+    template_preview: str = Field(..., description="Customized, realistic example of the work paper.")
+    next_step_available: bool

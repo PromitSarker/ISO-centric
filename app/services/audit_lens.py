@@ -1,90 +1,118 @@
 from __future__ import annotations
 
 import json
-import re
-from datetime import datetime
+import logging
+from typing import Dict, List, Optional
 
-from app.core.config import DEEPSEEK_MODEL_PRO
-from app.core.models import AuditLensRequest, AuditMaterial
-from app.core.prompts import AUDIT_LENS_SYSTEM_PROMPT
+from app.core.config import DEEPSEEK_MODEL
+from app.core.models import (
+    AuditContextOption,
+    AuditContextResponse,
+    AuditLensStepRequest,
+    AuditLensStepResponse,
+    OrgContextRequest,
+)
+from app.core.prompts import AUDIT_LENS_CONTEXT_PROMPT, AUDIT_LENS_STEP_PROMPT
 from app.services.deepseek import generate_with_deepseek
+from app.services.discovery import scrape_url
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# 13-Step Audit Journey Definition
+# ---------------------------------------------------------------------------
+
+AUDIT_STEPS = {
+    1: {"title": "Initiate the Audit", "stage": "Plan"},
+    2: {"title": "Document Review", "stage": "Plan"},
+    3: {"title": "Audit Plan", "stage": "Plan"},
+    4: {"title": "Work Assignment", "stage": "Plan"},
+    5: {"title": "Prepare Working Papers", "stage": "Plan"},
+    6: {"title": "Sequence & Scheduling", "stage": "Do"},
+    7: {"title": "Opening Meeting", "stage": "Do"},
+    8: {"title": "Review & Communicate", "stage": "Do"},
+    9: {"title": "Carry out the Audit", "stage": "Do"},
+    10: {"title": "Generate Findings", "stage": "Check"},
+    11: {"title": "Closing Meeting", "stage": "Check"},
+    12: {"title": "Audit Report", "stage": "Check"},
+    13: {"title": "Follow Up", "stage": "Act"},
+}
 
 
-async def generate_audit_materials(request: AuditLensRequest) -> AuditMaterial:
-    """Audit Lens: Generate comprehensive audit materials."""
+async def generate_audit_context(request: OrgContextRequest) -> AuditContextResponse:
+    """
+    Phase 1: Context Establishment
+    Analyzes URL or text and generates 3 Scope/Criteria/Objective options.
+    """
+    content = ""
+    if request.url:
+        content = await scrape_url(request.url)
+    elif request.text:
+        content = request.text
 
-    # Capture any extra JSON data "thrown" at the endpoint
-    extra_data = request.model_extra or {}
-    extra_context_str = (
-        f"\nADDITIONAL CONTEXT (JSON):\n{json.dumps(extra_data, indent=2)}"
-        if extra_data
-        else ""
-    )
+    if not content:
+        raise ValueError("Either text or a valid URL must be provided.")
 
-    stage_val = request.stage or "General/Unspecified"
-    material_type_val = (
-        request.material_type.value if request.material_type else "Audit Material"
-    )
+    prompt = f"Organization Information:\n{content}\n\nTask: Generate 3 audit framework options."
 
-    prompt = f"""
-AUDIT PARAMETERS:
-- Stage: {stage_val}
-- Material Type: {material_type_val}
-- Scope: {request.scope_description if request.scope_description else 'Full management system scope'}
-
-PREVIOUS FINDINGS (JSON):
-{json.dumps(request.previous_audit_findings, indent=2) if request.previous_audit_findings else 'No previous findings provided'}
-{extra_context_str}
-
-TASK:
-Generate comprehensive {material_type_val} for {stage_val} covering applicable ISO management system standards.
-
-REQUIREMENTS:
-1. Follow ISO 19011 auditing guidelines
-2. Reference specific ISO clause numbers relevant to the audit stage and material type
-3. Include risk-based focus areas
-4. Provide clear audit criteria and evidence requirements
-5. Include sampling guidance where applicable
-6. Consider previous findings and any additional context in focus areas
-
-Generate the complete audit material in markdown format. At the end, include:
-- iso_clauses_covered: list of clause numbers
-- next_steps: list of 3-5 actionable next steps
-- estimated_duration: time estimate
-- required_resources: list of resources needed
-"""
-
-    content = await generate_with_deepseek(
+    response_text = await generate_with_deepseek(
         prompt=prompt,
-        system_instruction=AUDIT_LENS_SYSTEM_PROMPT,
-        model=DEEPSEEK_MODEL_PRO,
-        max_tokens=4096,
+        system_instruction=AUDIT_LENS_CONTEXT_PROMPT,
+        model=DEEPSEEK_MODEL,
+        temperature=0.7,
+        response_format={"type": "json_object"},
     )
 
-    clause_matches = re.findall(
-        r"(?:Clause|Section|ISO\s*\d+\.\d+)[\s:]*(\d+(?:\.\d+)*)", content, re.IGNORECASE
-    )
-    iso_clauses = list(set(clause_matches))[:15]
+    # Clean up markdown wrappers if present
+    response_text = response_text.replace("```json", "").replace("```", "").strip()
 
-    return AuditMaterial(
-        stage=stage_val,
-        material_type=material_type_val,
-        content=content,
-        iso_clauses_covered=iso_clauses or ["4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"],
-        next_steps=[
-            "Review generated material with audit team lead",
-            "Customize based on organizational specifics",
-            "Schedule audit activities with auditees",
-            "Prepare evidence collection templates",
-            "Conduct opening meeting",
-        ],
-        estimated_duration="2-4 hours preparation, 1-3 days execution",
-        required_resources=[
-            "Audit team (Lead Auditor + Technical Expert)",
-            "Access to documented information",
-            "Interview rooms/space",
-            "Previous audit reports",
-            "Organization process maps",
-        ],
-        generation_timestamp=datetime.utcnow().isoformat(),
+    try:
+        data = json.loads(response_text)
+        options = [AuditContextOption(**opt) for opt in data.get("options", [])]
+        return AuditContextResponse(options=options)
+    except Exception as e:
+        logger.error(f"Failed to parse audit context options: {e}. Output: {response_text}")
+        raise ValueError("Failed to generate audit context options.")
+
+
+async def generate_audit_step(request: AuditLensStepRequest) -> AuditLensStepResponse:
+    """
+    Phase 2: 13-Step Educational Journey
+    Generates guidance and template preview for a specific audit step.
+    """
+    step_info = AUDIT_STEPS.get(request.step_number)
+    if not step_info:
+        raise ValueError(f"Invalid step number: {request.step_number}")
+
+    prompt = AUDIT_LENS_STEP_PROMPT.format(
+        step_number=request.step_number,
+        step_title=step_info["title"],
+        stage=step_info["stage"],
+        scope=request.locked_context.scope,
+        criteria=request.locked_context.criteria,
+        objective=request.locked_context.objective,
     )
+
+    response_text = await generate_with_deepseek(
+        prompt=prompt,
+        system_instruction="You are a JSON output generator for ISO audit materials.",
+        model=DEEPSEEK_MODEL,
+        temperature=0.5,
+        response_format={"type": "json_object"},
+    )
+
+    response_text = response_text.replace("```json", "").replace("```", "").strip()
+
+    try:
+        data = json.loads(response_text)
+        return AuditLensStepResponse(
+            step_number=request.step_number,
+            title=step_info["title"],
+            stage=step_info["stage"],
+            guidance=data.get("guidance", ""),
+            template_preview=data.get("template_preview", ""),
+            next_step_available=request.step_number < 13,
+        )
+    except Exception as e:
+        logger.error(f"Failed to parse audit step response: {e}. Output: {response_text}")
+        raise ValueError(f"Failed to generate materials for step {request.step_number}.")
