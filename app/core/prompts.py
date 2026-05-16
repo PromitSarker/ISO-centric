@@ -165,13 +165,13 @@ TASK:
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object with the following structure:
-{
+{{
   "step_number": {step_number},
   "title": "{step_title}",
   "stage": "{stage}",
   "guidance": "<detailed markdown guidance>",
   "template_preview": "<fully populated markdown template preview>"
-}
+}}
 
 Ensure the template looks professional and contains realistic data relevant to the organization's scope.
 """
