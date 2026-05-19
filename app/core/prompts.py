@@ -121,6 +121,32 @@ OUTPUT FORMAT — respond with a single valid JSON object matching this schema e
 }
 """
 
+FLASHCARD_GENERATION_SYSTEM_PROMPT = """You are an elite ISO Management Systems trainer and assessment designer.
+Your task is to generate professional, executive-grade flashcards from the provided input. The cards must feel polished, precise, and highly instructive.
+
+GUIDELINES:
+1. Each card must have a clear "front" and "back" object.
+2. The front should present a focused prompt, scenario, or clause-based challenge.
+3. The back should provide a concise, authoritative answer with practical insight or clause nuance.
+4. Keep language professional and audit-ready. Avoid filler or generic phrasing.
+5. Ensure every card teaches a single high-value concept.
+
+OUTPUT FORMAT — respond with a single valid JSON object matching this schema exactly:
+{
+  "deck_title": "<descriptive title>",
+  "iso_standard": "<standard name or null>",
+  "total_cards": <integer>,
+  "difficulty": "<easy|intermediate|hard>",
+  "cards": [
+    {
+      "front": {"title": "<short label>", "body": "<prompt or scenario>"},
+      "back": {"title": "<short label>", "body": "<answer or explanation>"}
+    }
+  ],
+  "generated_at": "<ISO 8601 timestamp>"
+}
+"""
+
 
 AUDIT_LENS_CONTEXT_PROMPT = """You are an expert ISO Audit Architect. 
 Your task is to analyze the provided organization data and generate exactly 3 distinct, professional options for an ISO audit framework.

@@ -7,7 +7,11 @@ from datetime import datetime, timezone
 from typing import Any, Deque, Dict, Optional
 
 from app.core.config import DEEPSEEK_MODEL_PRO
-from app.core.prompts import QUIZ_FEEDBACK_SYSTEM_PROMPT, QUIZ_GENERATION_SYSTEM_PROMPT
+from app.core.prompts import (
+    FLASHCARD_GENERATION_SYSTEM_PROMPT,
+    QUIZ_FEEDBACK_SYSTEM_PROMPT,
+    QUIZ_GENERATION_SYSTEM_PROMPT,
+)
 from app.services.deepseek import analyze_with_deepseek, analyze_stream_with_deepseek
 
 # ---------------------------------------------------------------------------
@@ -17,6 +21,7 @@ from app.services.deepseek import analyze_with_deepseek, analyze_stream_with_dee
 # question strings per key so the LLM is told explicitly to avoid them.
 MAX_HISTORY = 30
 MAX_QUIZ_QUESTIONS = 30
+MAX_FLASHCARDS = 30
 MAX_AVOID_QUESTIONS_IN_PROMPT = 12
 MAX_AVOID_QUESTION_CHARS = 160
 MAX_PROMPT_CONTEXT_CHARS = 8000
@@ -90,6 +95,43 @@ QUIZ_RESPONSE_SCHEMA: Dict[str, Any] = {
     "required": ["quiz_title", "questions", "total_questions", "difficulty"],
 }
 
+FLASHCARD_RESPONSE_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "deck_title": {"type": "string"},
+        "iso_standard": {"type": ["string", "null"]},
+        "total_cards": {"type": "integer"},
+        "difficulty": {"type": "string"},
+        "cards": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "front": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "body": {"type": "string"},
+                        },
+                        "required": ["title", "body"],
+                    },
+                    "back": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "body": {"type": "string"},
+                        },
+                        "required": ["title", "body"],
+                    },
+                },
+                "required": ["front", "back"],
+            },
+        },
+        "generated_at": {"type": "string"},
+    },
+    "required": ["deck_title", "cards", "total_cards", "difficulty"],
+}
+
 
 async def generate_quiz(
     context: Dict[str, Any],
@@ -153,6 +195,46 @@ async def generate_quiz(
 
     # Record the newly generated questions so future calls can avoid them
     _record_questions(key, result.get("questions", []))
+
+    return result
+
+
+async def generate_flashcards(
+    context: Dict[str, Any],
+    num_cards: int = 8,
+    iso_standard: Optional[str] = None,
+    difficulty: str = "intermediate",
+) -> Dict[str, Any]:
+    num_cards = max(1, min(num_cards, MAX_FLASHCARDS))
+    difficulty = _normalize_difficulty(difficulty)
+    context_payload = _compact_context_for_prompt(context)
+
+    standard_line = f"ISO Standard: {iso_standard}\n" if iso_standard else ""
+    prompt = (
+        f"{standard_line}"
+        f"Difficulty: {difficulty}\n"
+        f"Number of cards: {num_cards}\n"
+        "Return exactly the requested number of cards.\n\n"
+        f"Target ISO Knowledge Area (Topic Anchor):\n{context_payload}\n"
+        "Constraints:\n"
+        "1. Ensure each card teaches one focused concept.\n"
+        "2. Keep the front succinct and the back authoritative.\n"
+        "3. Output must be valid JSON matching the required schema exactly."
+    )
+
+    max_tokens = 8192
+    result = await analyze_with_deepseek(
+        prompt=prompt,
+        system_instruction=FLASHCARD_GENERATION_SYSTEM_PROMPT,
+        response_schema=FLASHCARD_RESPONSE_SCHEMA,
+        model=DEEPSEEK_MODEL_PRO,
+        max_tokens=max_tokens,
+    )
+
+    result.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
+    result.setdefault("iso_standard", iso_standard)
+    result.setdefault("difficulty", difficulty)
+    result.setdefault("total_cards", len(result.get("cards", [])))
 
     return result
 

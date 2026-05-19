@@ -5,9 +5,14 @@ from typing import List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-from app.core.models import QuizFeedbackRequest, QuizFeedbackResponse, QuizResponse
+from app.core.models import FlashcardResponse, QuizFeedbackRequest, QuizFeedbackResponse, QuizResponse
 from app.services.benchmark import extract_text_from_file
-from app.services.quiz import generate_quiz, generate_quiz_feedback, generate_quiz_stream
+from app.services.quiz import (
+    generate_flashcards,
+    generate_quiz,
+    generate_quiz_feedback,
+    generate_quiz_stream,
+)
 
 router = APIRouter(prefix="/api/v1/quiz", tags=["Quiz Generator"])
 
@@ -41,7 +46,7 @@ async def generate_quiz_endpoint(
     context: str = Form("{}", description="JSON string of context data"),
     num_questions: int = Form(5, ge=1, le=30, description="How many questions to generate (1-30)"),
     difficulty: str = Form("intermediate", description="easy, intermediate, or hard"),
-    files: Optional[List[UploadFile]] = File(None),
+    file: Optional[UploadFile] = File(default=None),
 ):
     """
     Quiz Generator — create a multiple-choice quiz from any JSON context.
@@ -51,7 +56,7 @@ async def generate_quiz_endpoint(
       or structured content the quiz should be based on.
     - `num_questions`: How many questions to generate (1–30, default 5).
     - `difficulty`: `"easy"`, `"intermediate"`, or `"hard"` (default: `"intermediate"`).
-    - `files`: Optional file uploads to generate the quiz from.
+    - `file`: Optional file upload to generate the quiz from.
 
     **Output:**
     - A `quiz_title` and list of questions, each containing:
@@ -62,8 +67,9 @@ async def generate_quiz_endpoint(
     """
     parsed_context = _parse_context(context)
 
-    if files:
-        uploaded_files_data = await asyncio.gather(*[_extract_uploaded_file(file) for file in files])
+    if file and file.filename:
+        # File is provided
+        uploaded_files_data = [await _extract_uploaded_file(file)]
         parsed_context["uploaded_files"] = uploaded_files_data
 
     result = await generate_quiz(
@@ -79,7 +85,7 @@ async def generate_quiz_stream_endpoint(
     context: str = Form("{}", description="JSON string of context data"),
     num_questions: int = Form(5, ge=1, le=30, description="How many questions to generate (1-30)"),
     difficulty: str = Form("intermediate", description="easy, intermediate, or hard"),
-    files: Optional[List[UploadFile]] = File(None),
+    file: Optional[UploadFile] = File(default=None),
 ):
     """
     Quiz Generator Stream — identical to `/generate` but streams the raw JSON string output as it generates.
@@ -87,8 +93,8 @@ async def generate_quiz_stream_endpoint(
     """
     parsed_context = _parse_context(context)
 
-    if files:
-        uploaded_files_data = await asyncio.gather(*[_extract_uploaded_file(file) for file in files])
+    if file and file.filename:
+        uploaded_files_data = [await _extract_uploaded_file(file)]
         parsed_context["uploaded_files"] = uploaded_files_data
 
     # Return stream directly. Format is text/event-stream or application/x-ndjson depending on how the frontend prefers it.
@@ -101,6 +107,42 @@ async def generate_quiz_stream_endpoint(
         ),
         media_type="text/plain",
     )
+
+
+@router.post("/flashcards", response_model=FlashcardResponse)
+async def generate_flashcards_endpoint(
+    context: str = Form("{}", description="JSON string of context data"),
+    num_cards: int = Form(8, ge=1, le=30, description="How many flashcards to generate (1-30)"),
+    difficulty: str = Form("intermediate", description="easy, intermediate, or hard"),
+    file: Optional[UploadFile] = File(default=None),
+):
+    """
+    Flashcard Generator — create a professional, high-impact study deck from any JSON context.
+
+    **Input:**
+    - `context` *(optional)*: JSON string describing the topic, subject matter,
+      or structured content the flashcards should be based on.
+    - `num_cards`: How many flashcards to generate (1–30, default 8).
+    - `difficulty`: "easy", "intermediate", or "hard" (default: "intermediate").
+    - `file`: Optional file upload to generate the flashcards from.
+
+    **Output:**
+    - A `deck_title` and list of cards, each containing:
+      - `front`: {title, body}
+      - `back`: {title, body}
+    """
+    parsed_context = _parse_context(context)
+
+    if file and file.filename:
+        uploaded_files_data = [await _extract_uploaded_file(file)]
+        parsed_context["uploaded_files"] = uploaded_files_data
+
+    result = await generate_flashcards(
+        context=parsed_context,
+        num_cards=num_cards,
+        difficulty=difficulty,
+    )
+    return FlashcardResponse(**result)
 
 
 @router.post("/feedback", response_model=QuizFeedbackResponse)

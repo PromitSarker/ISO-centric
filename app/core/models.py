@@ -220,6 +220,37 @@ class QuizResponse(BaseModel):
     generated_at: str
 
 
+class FlashcardRequest(BaseModel):
+    context: Dict[str, Any] = Field(
+        ...,
+        description="JSON object containing the topic, subject matter, or any structured content to generate flashcards from.",
+    )
+    num_cards: Optional[int] = Field(8, ge=1, le=30, description="Number of flashcards to generate (1–30).")
+    difficulty: Optional[str] = Field(
+        "intermediate",
+        description="Difficulty level: 'easy', 'intermediate', or 'hard'.",
+    )
+
+
+class FlashcardFace(BaseModel):
+    title: str = Field(..., description="Short label for the card face.")
+    body: str = Field(..., description="Primary content for the card face.")
+
+
+class Flashcard(BaseModel):
+    front: FlashcardFace
+    back: FlashcardFace
+
+
+class FlashcardResponse(BaseModel):
+    deck_title: str
+    iso_standard: Optional[str]
+    total_cards: int
+    difficulty: str
+    cards: List[Flashcard]
+    generated_at: str
+
+
 class QuizFeedbackRequest(BaseModel):
     context: Dict[str, Any] = Field(..., description="Context of the quiz.")
     results: List[Dict[str, Any]] = Field(
