@@ -30,10 +30,19 @@ DOCUMENT REQUIREMENTS:
 5. Include implementation guidance
 6. Use {request.tone} tone in {request.language} language
 
-Generate the complete document in markdown format. At the end, include a JSON section with:
-- iso_clauses_referenced: list of clause numbers
-- word_count: integer
-- confidence_score: float between 0 and 1
+Generate the complete output as a formal Markdown document only.
+Follow this structure exactly:
+1. Purpose
+2. Scope
+3. Terms and Definitions
+4. Roles and Responsibilities
+5. Policy / Procedure Requirements
+6. Related Documentation
+7. Document Revision History
+
+Under section 5, organize the content with logical subheadings such as 5.1, 5.2, and so on.
+Use actionable language such as shall, must, and is responsible for.
+Do not include introductory or concluding filler.
 """
 
     model = DEEPSEEK_MODEL_PRO if len(request.organization_context) > 1000 else DEEPSEEK_MODEL

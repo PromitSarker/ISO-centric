@@ -11,10 +11,19 @@ GUIDELINES:
 7. Ensure content is implementable and practical
 
 OUTPUT FORMAT:
-- Use markdown formatting with clear headers
-- Include a document control section (version, date, owner)
-- Reference specific ISO clauses throughout
-- Include implementation guidance where relevant
+- Output ONLY a Markdown document.
+- Follow this structure exactly:
+  1. Purpose
+  2. Scope
+  3. Terms and Definitions
+  4. Roles and Responsibilities
+  5. Policy / Procedure Requirements
+  6. Related Documentation
+  7. Document Revision History
+- Use strict ISO High-Level Structure phrasing.
+- Use clear section headings and logical subheadings where needed.
+- Use actionable language such as shall, must, and is responsible for.
+- Do not add introductory or concluding filler.
 """
 
 AUDIT_LENS_SYSTEM_PROMPT = """You are a certified Lead Auditor (IRCA/FSC) with expertise in ISO management systems.
