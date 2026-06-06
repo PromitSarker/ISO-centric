@@ -12,15 +12,31 @@ from app.services.deepseek import generate_with_deepseek
 async def generate_iso_navigator_document(request: NavigatorRequest) -> GeneratedDocument:
     """ISO Navigator: Generate compliant ISO documentation."""
 
+    org_context = request.organization_context or "Not provided"
+    out_type = request.output_type or "ISO Document"
+    spec_reqs = request.specific_requirements or "Follow standard ISO requirements for this document type"
+    tone = request.tone or "professional"
+    language = request.language or "English"
+
+    extra_inputs = request.model_extra or {}
+    
+    # Dynamically format extra inputs as context/requirements
+    extra_context_str = ""
+    if extra_inputs:
+        extra_context_str = "\nADDITIONAL INPUTS & CONTEXT:\n" + "\n".join(
+            f"- {key.replace('_', ' ').title()}: {val}" for key, val in extra_inputs.items()
+        )
+
     prompt = f"""
 ORGANIZATION CONTEXT:
-{request.organization_context}
+{org_context}
+{extra_context_str}
 
 TASK:
-Generate a {request.output_type.value} aligned with applicable ISO management system standards.
+Generate a {out_type} aligned with applicable ISO management system standards.
 
 SPECIFIC REQUIREMENTS:
-{request.specific_requirements if request.specific_requirements else "Follow standard ISO requirements for this document type"}
+{spec_reqs}
 
 DOCUMENT REQUIREMENTS:
 1. Include document control information (version, effective date, owner)
@@ -28,7 +44,7 @@ DOCUMENT REQUIREMENTS:
 3. Include purpose, scope, responsibilities, procedures
 4. Add measurable objectives and KPIs where applicable
 5. Include implementation guidance
-6. Use {request.tone} tone in {request.language} language
+6. Use {tone} tone in {language} language
 
 Generate the complete output as a formal Markdown document only.
 Follow this structure exactly:
@@ -45,7 +61,8 @@ Use actionable language such as shall, must, and is responsible for.
 Do not include introductory or concluding filler.
 """
 
-    model = DEEPSEEK_MODEL_PRO if len(request.organization_context) > 1000 else DEEPSEEK_MODEL
+    context_length = len(org_context) + sum(len(str(v)) for v in extra_inputs.values())
+    model = DEEPSEEK_MODEL_PRO if context_length > 1000 else DEEPSEEK_MODEL
     content = await generate_with_deepseek(
         prompt=prompt,
         system_instruction=ISO_NAVIGATOR_SYSTEM_PROMPT,
@@ -58,15 +75,20 @@ Do not include introductory or concluding filler.
     )
     iso_clauses = list(set(clause_matches))[:10]
 
+    # Construct metadata with standard fields and merge any extra fields
+    metadata = {
+        "organization_context": org_context[:200] + "..." if len(org_context) > 200 else org_context,
+        "output_type": out_type,
+        "tone": tone,
+        "language": language,
+    }
+    for key, val in extra_inputs.items():
+        metadata[key] = val
+
     return GeneratedDocument(
-        title=f"{request.output_type.value}",
+        title=f"{out_type}",
         content=content,
-        metadata={
-            "organization_context": request.organization_context[:200] + "...",
-            "output_type": request.output_type.value,
-            "tone": request.tone,
-            "language": request.language,
-        },
+        metadata=metadata,
         iso_clauses_referenced=iso_clauses or ["4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"],
         generation_timestamp=datetime.utcnow().isoformat(),
         word_count=len(content.split()),

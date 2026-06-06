@@ -54,13 +54,17 @@ class PriorityLevel(str, Enum):
 # ---------------------------------------------------------------------------
 
 class NavigatorRequest(BaseModel):
-    organization_context: str = Field(
-        ...,
+    model_config = ConfigDict(extra="allow")
+
+    organization_context: Optional[str] = Field(
+        None,
         description="Organization description (e.g., 'Acme Corp, specializing in digital solutions with 50+ employees...')",
-        min_length=10,
         max_length=5000,
     )
-    output_type: NavigatorOutputType
+    output_type: Optional[str] = Field(
+        None,
+        description="Type of document to generate (e.g., Policy Document, SOP, Risk Register, or any custom value)",
+    )
     specific_requirements: Optional[str] = Field(None, max_length=2000)
     tone: Optional[str] = Field("professional", description="Document tone (professional, formal, technical)")
     language: Optional[str] = Field("English", description="Output language")
