@@ -36,6 +36,7 @@ async def analyze_compliance_text(request: BenchmarkRequest):
     result = await generate_benchmark_analysis(
         document_text=request.document_text[:BENCHMARK_MAX_INPUT_CHARS],
         improvement_goal=request.improvement_goal or "General assessment",
+        target_standard=request.target_standard or "ISO 9001:2015",
         document_type=request.document_type,
         department=request.department,
         analysis_id=analysis_id,
@@ -47,6 +48,7 @@ async def analyze_compliance_text(request: BenchmarkRequest):
 async def analyze_compliance_file(
     file: UploadFile = File(...),
     improvement_goal: Optional[str] = Form(None),
+    target_standard: str = Form("ISO 9001:2015", description="Target ISO standard to evaluate against"),
     document_type: str = Form("Unknown"),
     department: Optional[str] = Form(None),
 ):
@@ -93,6 +95,7 @@ async def analyze_compliance_file(
         document_content=document_content,
         mime_type=mime_type,
         improvement_goal=improvement_goal or "General assessment",
+        target_standard=target_standard,
         document_type=document_type,
         department=department,
         analysis_id=analysis_id,

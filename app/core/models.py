@@ -86,6 +86,7 @@ class BenchmarkRequest(BaseModel):
         max_length=50000,
     )
     improvement_goal: Optional[str] = Field(None, max_length=1000)
+    target_standard: Optional[str] = Field("ISO 9001:2015", description="Target ISO standard to evaluate against")
     document_type: Optional[str] = Field("Unknown", description="Type of document (Policy, Procedure, Record, etc.)")
     department: Optional[str] = None
 
