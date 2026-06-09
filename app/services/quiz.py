@@ -12,6 +12,7 @@ from app.core.prompts import (
     QUIZ_FEEDBACK_SYSTEM_PROMPT,
     QUIZ_GENERATION_SYSTEM_PROMPT,
 )
+from app.core.token_utils import is_truncated, get_json_wrap_message
 from app.services.deepseek import analyze_with_deepseek, analyze_stream_with_deepseek
 
 # ---------------------------------------------------------------------------
@@ -179,7 +180,7 @@ async def generate_quiz(
 
     # Budget tuned for short-format MCQs while supporting up to 30 questions.
     max_tokens = 8192  # Give it the maximum output tokens the API allows to prevent cutoff
-    result = await analyze_with_deepseek(
+    result, finish_reason = await analyze_with_deepseek(
         prompt=prompt,
         system_instruction=QUIZ_GENERATION_SYSTEM_PROMPT,
         response_schema=QUIZ_RESPONSE_SCHEMA,
@@ -192,6 +193,11 @@ async def generate_quiz(
     result.setdefault("iso_standard", iso_standard)
     result.setdefault("difficulty", difficulty)
     result.setdefault("total_questions", len(result.get("questions", [])))
+    
+    # Mark if response was truncated
+    if is_truncated(finish_reason):
+        result["_was_truncated"] = True
+        result["_truncation_warning"] = get_json_wrap_message()
 
     # Record the newly generated questions so future calls can avoid them
     _record_questions(key, result.get("questions", []))
@@ -223,7 +229,7 @@ async def generate_flashcards(
     )
 
     max_tokens = 8192
-    result = await analyze_with_deepseek(
+    result, finish_reason = await analyze_with_deepseek(
         prompt=prompt,
         system_instruction=FLASHCARD_GENERATION_SYSTEM_PROMPT,
         response_schema=FLASHCARD_RESPONSE_SCHEMA,
@@ -235,6 +241,11 @@ async def generate_flashcards(
     result.setdefault("iso_standard", iso_standard)
     result.setdefault("difficulty", difficulty)
     result.setdefault("total_cards", len(result.get("cards", [])))
+    
+    # Mark if response was truncated
+    if is_truncated(finish_reason):
+        result["_was_truncated"] = True
+        result["_truncation_warning"] = get_json_wrap_message()
 
     return result
 
@@ -291,7 +302,15 @@ async def generate_quiz_stream(
         model=DEEPSEEK_MODEL_PRO,
         max_tokens=max_tokens,
     ):
-        yield chunk
+        # Check if this is the finish_reason marker
+        if isinstance(chunk, str) and chunk.startswith("__FINISH_REASON__"):
+            finish_reason = chunk.replace("__FINISH_REASON__", "")
+            if is_truncated(finish_reason):
+                # Append wrap-up message to indicate truncation
+                wrap_msg = '\n\n"_was_truncated": true, "_truncation_warning": "' + get_json_wrap_message() + '"}'
+                yield wrap_msg
+        else:
+            yield chunk
 
 QUIZ_FEEDBACK_RESPONSE_SCHEMA: Dict[str, Any] = {
     "type": "object",
@@ -369,12 +388,18 @@ async def generate_quiz_feedback(
         "and correlating them to specific ISO clause weaknesses."
     )
 
-    result = await analyze_with_deepseek(
+    result, finish_reason = await analyze_with_deepseek(
         prompt=prompt,
         system_instruction=QUIZ_FEEDBACK_SYSTEM_PROMPT,
         response_schema=QUIZ_FEEDBACK_RESPONSE_SCHEMA,
         model=DEEPSEEK_MODEL_PRO,
         max_tokens=4096,
     )
+    
+    # Add truncation warning to feedback if needed
+    if is_truncated(finish_reason):
+        result["_was_truncated"] = True
+        if "mentor_closing_note" in result:
+            result["mentor_closing_note"] += " [Note: Feedback was truncated due to length limits.]"
 
     return result

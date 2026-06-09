@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Dict, Optional
+import logging
+from typing import Any, Dict, Optional, Tuple
 
 from fastapi import HTTPException
 
 from app.core.client import DeepSeekClient
 from app.core.config import DEEPSEEK_MODEL, DEEPSEEK_MODEL_PRO
+
+logger = logging.getLogger(__name__)
 
 
 DEEPSEEK_CALL_TIMEOUT = 590  # seconds — must be less than DEEPSEEK_TIMEOUT_SECONDS in client.py
@@ -20,8 +23,8 @@ async def generate_with_deepseek(
     temperature: float = 0.3,
     max_tokens: int = 4096,
     response_format: Optional[Dict[str, str]] = None,
-) -> str:
-    """Generate free-text content using the DeepSeek API."""
+) -> Tuple[str, str]:
+    """Generate free-text content using the DeepSeek API. Returns (content, finish_reason) tuple."""
     client = DeepSeekClient.get_async_client()
     try:
         kwargs = {
@@ -40,7 +43,13 @@ async def generate_with_deepseek(
             client.chat.completions.create(**kwargs),
             timeout=DEEPSEEK_CALL_TIMEOUT,
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        finish_reason = response.choices[0].finish_reason
+        
+        if finish_reason == "length":
+            logger.warning(f"AI response truncated at {max_tokens} tokens (generate_with_deepseek)")
+        
+        return content, finish_reason
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=504,
@@ -56,8 +65,8 @@ async def analyze_with_deepseek(
     response_schema: Dict[str, Any],
     model: str = DEEPSEEK_MODEL_PRO,
     max_tokens: int = 8192,
-) -> Dict[str, Any]:
-    """Analyze content using the DeepSeek API with structured JSON output."""
+) -> Tuple[Dict[str, Any], str]:
+    """Analyze content using the DeepSeek API with structured JSON output. Returns (parsed_dict, finish_reason) tuple."""
     client = DeepSeekClient.get_async_client()
     try:
         schema_str = json.dumps(response_schema, indent=2)
@@ -82,7 +91,27 @@ async def analyze_with_deepseek(
             ),
             timeout=DEEPSEEK_CALL_TIMEOUT,
         )
-        return json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        finish_reason = response.choices[0].finish_reason
+        
+        if finish_reason == "length":
+            logger.warning(f"AI response truncated at {max_tokens} tokens (analyze_with_deepseek)")
+        
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as e:
+            # Try to repair truncated JSON
+            from app.core.token_utils import attempt_json_repair
+            try:
+                parsed = attempt_json_repair(content)
+                logger.info("Successfully repaired truncated JSON response")
+            except ValueError:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to parse AI response as JSON: {str(e)}"
+                )
+        
+        return parsed, finish_reason
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=504,
@@ -124,9 +153,20 @@ async def analyze_stream_with_deepseek(
             response_format={"type": "json_object"},
             stream=True,
         )
+        finish_reason = None
         async for chunk in response_stream:
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+            if chunk.choices:
+                if chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                # Capture finish_reason from the final chunk
+                if chunk.choices[0].finish_reason:
+                    finish_reason = chunk.choices[0].finish_reason
+        
+        # Yield finish_reason as final item
+        if finish_reason:
+            if finish_reason == "length":
+                logger.warning(f"AI response truncated at {max_tokens} tokens (analyze_stream_with_deepseek)")
+            yield f"__FINISH_REASON__{finish_reason}"
     except Exception as e:
         # Note: Streaming generator errors are raised where the generator is consumed
         raise HTTPException(status_code=500, detail=f"DeepSeek API Error (Stream): {str(e)}")

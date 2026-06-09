@@ -190,6 +190,29 @@ class ChatResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# RAG Models
+# ---------------------------------------------------------------------------
+
+class IngestRequest(BaseModel):
+    text_content: Optional[str] = Field(None, max_length=100000)
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class IngestResponse(BaseModel):
+    success: bool
+    document_id: Optional[str] = None
+    chunks_created: int
+    filename: str
+    error: Optional[str] = None
+
+
+class DocumentChunk(BaseModel):
+    text: str
+    metadata: Dict[str, Any]
+    similarity_score: float = Field(ge=0, le=1)
+
+
+# ---------------------------------------------------------------------------
 # Quiz Models
 # ---------------------------------------------------------------------------
 

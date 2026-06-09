@@ -8,6 +8,7 @@ from app.core.models import ChatMessage, ChatRequest, ChatResponse, ISOStandard
 from app.core.prompts import GENERAL_CHAT_SYSTEM_PROMPT
 from app.core.session import handle_chat
 from app.services.benchmark import extract_text_from_file
+from app.services.rag import search_similar
 
 
 router = APIRouter(prefix="/api/v1", tags=["General Chat"])
@@ -42,6 +43,17 @@ async def general_chat(
             request_payload.context["uploaded_file_text"] = file_text
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"Failed to process file: {str(exc)}") from exc
+
+    # Retrieve relevant knowledge from vector database
+    if request_payload.messages:
+        user_query = request_payload.messages[-1].content
+        try:
+            retrieved_chunks = await search_similar(user_query, top_k=3)
+            if retrieved_chunks:
+                request_payload.context = request_payload.context or {}
+                request_payload.context["retrieved_knowledge"] = retrieved_chunks
+        except Exception:
+            pass
 
     return await handle_chat(
         request=request_payload,

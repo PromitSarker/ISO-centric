@@ -13,6 +13,7 @@ from app.core.models import (
     OrgContextRequest,
 )
 from app.core.prompts import AUDIT_LENS_CONTEXT_PROMPT, AUDIT_LENS_STEP_PROMPT
+from app.core.token_utils import is_truncated
 from app.services.deepseek import generate_with_deepseek
 from app.services.discovery import scrape_url
 
@@ -55,7 +56,7 @@ async def generate_audit_context(request: OrgContextRequest) -> AuditContextResp
 
     prompt = f"Organization Information:\n{content}\n\nTask: Generate 3 audit framework options."
 
-    response_text = await generate_with_deepseek(
+    response_text, finish_reason = await generate_with_deepseek(
         prompt=prompt,
         system_instruction=AUDIT_LENS_CONTEXT_PROMPT,
         model=DEEPSEEK_MODEL,
@@ -69,6 +70,17 @@ async def generate_audit_context(request: OrgContextRequest) -> AuditContextResp
     try:
         data = json.loads(response_text)
         options = [AuditContextOption(**opt) for opt in data.get("options", [])]
+        
+        if is_truncated(finish_reason):
+            logger.warning("Audit context generation response was truncated at token limit")
+            # Add warning option
+            from app.core.token_utils import get_json_wrap_message
+            options.append(AuditContextOption(
+                scope="⚠️ Truncation Warning",
+                criteria=get_json_wrap_message(),
+                objective="Response was cut off due to token limits"
+            ))
+        
         return AuditContextResponse(options=options)
     except Exception as e:
         logger.error(f"Failed to parse audit context options: {e}. Output: {response_text}")
@@ -93,7 +105,7 @@ async def generate_audit_step(request: AuditLensStepRequest) -> AuditLensStepRes
         objective=request.locked_context.objective,
     )
 
-    response_text = await generate_with_deepseek(
+    response_text, finish_reason = await generate_with_deepseek(
         prompt=prompt,
         system_instruction="You are a JSON output generator for ISO audit materials.",
         model=DEEPSEEK_MODEL,
@@ -105,12 +117,23 @@ async def generate_audit_step(request: AuditLensStepRequest) -> AuditLensStepRes
 
     try:
         data = json.loads(response_text)
+        
+        guidance = data.get("guidance", "")
+        template_preview = data.get("template_preview", "")
+        
+        if is_truncated(finish_reason):
+            logger.warning(f"Audit step {request.step_number} generation response was truncated at token limit")
+            from app.core.token_utils import get_json_wrap_message
+            truncation_note = f"\n\n{get_json_wrap_message()}"
+            guidance += truncation_note
+            template_preview += truncation_note
+        
         return AuditLensStepResponse(
             step_number=request.step_number,
             title=step_info["title"],
             stage=step_info["stage"],
-            guidance=data.get("guidance", ""),
-            template_preview=data.get("template_preview", ""),
+            guidance=guidance,
+            template_preview=template_preview,
             next_step_available=request.step_number < 13,
         )
     except Exception as e:

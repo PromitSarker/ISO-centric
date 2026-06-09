@@ -8,4 +8,6 @@ python-docx
 pypdf
 httpx
 beautifulsoup4
+chromadb
+langchain-text-splitters
 

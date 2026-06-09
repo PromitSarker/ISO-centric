@@ -6,6 +6,7 @@ from datetime import datetime
 from app.core.config import DEEPSEEK_MODEL, DEEPSEEK_MODEL_PRO
 from app.core.models import GeneratedDocument, NavigatorRequest
 from app.core.prompts import ISO_NAVIGATOR_SYSTEM_PROMPT
+from app.core.token_utils import is_truncated, get_text_wrap_message
 from app.services.deepseek import generate_with_deepseek
 
 
@@ -63,12 +64,23 @@ Do not include introductory or concluding filler.
 
     context_length = len(org_context) + sum(len(str(v)) for v in extra_inputs.values())
     model = DEEPSEEK_MODEL_PRO if context_length > 1000 else DEEPSEEK_MODEL
-    content = await generate_with_deepseek(
+    content, finish_reason = await generate_with_deepseek(
         prompt=prompt,
         system_instruction=ISO_NAVIGATOR_SYSTEM_PROMPT,
         model=model,
         max_tokens=4096,
     )
+    
+    # Handle truncation
+    from app.core.token_utils import is_truncated
+    if is_truncated(finish_reason):
+        content += "\n\n[Note: Response truncated due to token limit]"
+    
+    # Append truncation note if response was cut off
+    confidence_score = 0.85
+    if is_truncated(finish_reason):
+        content += get_text_wrap_message()
+        confidence_score -= 0.15  # Reduce confidence for truncated documents
 
     clause_matches = re.findall(
         r"(?:Clause|Section|ISO\s*\d+\.\d+)[\s:]*(\d+(?:\.\d+)*)", content, re.IGNORECASE
@@ -92,5 +104,5 @@ Do not include introductory or concluding filler.
         iso_clauses_referenced=iso_clauses or ["4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"],
         generation_timestamp=datetime.utcnow().isoformat(),
         word_count=len(content.split()),
-        confidence_score=0.85,
+        confidence_score=confidence_score,
     )

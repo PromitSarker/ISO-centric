@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 from datetime import datetime
 from io import BytesIO
@@ -12,6 +13,9 @@ from fastapi import HTTPException, UploadFile
 from app.core.client import DeepSeekClient
 from app.core.config import DEEPSEEK_MODEL_PRO
 from app.core.prompts import BENCHMARK_AI_SYSTEM_PROMPT
+from app.core.token_utils import is_truncated, get_json_wrap_message, attempt_json_repair
+
+logger = logging.getLogger(__name__)
 
 
 BENCHMARK_MAX_INPUT_CHARS = int(os.getenv("BENCHMARK_MAX_INPUT_CHARS", "15000"))
@@ -197,10 +201,37 @@ RESPOND ONLY WITH VALID JSON MATCHING THE SCHEMA.
             ),
             timeout=BENCHMARK_TIMEOUT_SECONDS,
         )
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        finish_reason = response.choices[0].finish_reason
+        
+        if is_truncated(finish_reason):
+            logger.warning("Benchmark analysis response was truncated at token limit")
+        
+        # Parse JSON with repair attempt if needed
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            try:
+                result = attempt_json_repair(content)
+                logger.info("Successfully repaired truncated benchmark JSON")
+            except ValueError:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "The AI returned an incomplete response. This usually means the document "
+                        "is too large. Try truncating to the most relevant sections and retry."
+                    ),
+                )
+        
         result["standard_analyzed"] = target_standard
         result["analysis_timestamp"] = datetime.utcnow().isoformat()
         result["analysis_id"] = analysis_id
+        
+        # Add truncation warning if detected
+        if is_truncated(finish_reason):
+            result["_was_truncated"] = True
+            result["_truncation_warning"] = get_json_wrap_message()
+        
         return result
     except asyncio.TimeoutError:
         raise HTTPException(
@@ -210,7 +241,8 @@ RESPOND ONLY WITH VALID JSON MATCHING THE SCHEMA.
                 "Try a shorter document or retry shortly."
             ),
         )
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
+        # This should not be reached anymore since we handle it above with repair
         raise HTTPException(
             status_code=502,
             detail=(
