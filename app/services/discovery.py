@@ -178,7 +178,7 @@ Provide 3 to 5 relevant ISO standards. For each, give the standard code, title, 
             - "records" is a list of objects with keys: "title", "clause", "type" (value must be "record").
         - If there are no recommended documents or records for a standard, return an empty list for that field.
         
-IMPORTANT: If no specific ISO standard is listed or requested, you MUST prioritize and suggest the latest relative ISO standards based on the context provided.
+IMPORTANT: You MUST prioritize and suggest the ISO standards explicitly mentioned in the RELEVANT VECTOR DB CONTEXT. Only if the vector context is insufficient should you fall back to suggesting the latest relative ISO standards from your general knowledge.
 """
 
     try:
@@ -256,7 +256,7 @@ Provide 3 to 5 relevant ISO standards. For each, give the standard code, title, 
         - The output MUST be a JSON object with a single key "suggestions" containing a list of objects.
         - Each object must have the exact keys: "standard", "title", "relevance".
         
-IMPORTANT: If no specific ISO standard is listed or requested, you MUST prioritize and suggest the latest relative ISO standards based on the context provided.
+IMPORTANT: You MUST prioritize and suggest the ISO standards explicitly mentioned in the RELEVANT VECTOR DB CONTEXT. Only if the vector context is insufficient should you fall back to suggesting the latest relative ISO standards from your general knowledge.
 """
 
     try:
