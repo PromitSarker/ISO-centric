@@ -16,6 +16,7 @@ from app.core.prompts import AUDIT_LENS_CONTEXT_PROMPT, AUDIT_LENS_STEP_PROMPT
 from app.core.token_utils import is_truncated
 from app.services.deepseek import generate_with_deepseek
 from app.services.discovery import scrape_url
+from app.services.rag import search_similar
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,16 @@ async def generate_audit_context(request: OrgContextRequest) -> AuditContextResp
         raise ValueError("Either text or a valid URL must be provided.")
 
     prompt = f"Organization Information:\n{content}\n\nTask: Generate 3 audit framework options."
+
+    try:
+        similar_docs = await search_similar(content[:500], top_k=3)
+        if similar_docs:
+            rag_context = "\n\nRELEVANT VECTOR DB CONTEXT:\n" + "\n".join(
+                f"- {doc['text']}" for doc in similar_docs
+            )
+            prompt += rag_context
+    except Exception as e:
+        logger.warning(f"RAG search failed: {e}")
 
     response_text, finish_reason = await generate_with_deepseek(
         prompt=prompt,
@@ -104,6 +115,17 @@ async def generate_audit_step(request: AuditLensStepRequest) -> AuditLensStepRes
         criteria=request.locked_context.criteria,
         objective=request.locked_context.objective,
     )
+
+    try:
+        query = f"{request.locked_context.criteria} {step_info['title']} audit"
+        similar_docs = await search_similar(query, top_k=3)
+        if similar_docs:
+            rag_context = "\n\nRELEVANT VECTOR DB CONTEXT:\n" + "\n".join(
+                f"- {doc['text']}" for doc in similar_docs
+            )
+            prompt += rag_context
+    except Exception as e:
+        logger.warning(f"RAG search failed: {e}")
 
     response_text, finish_reason = await generate_with_deepseek(
         prompt=prompt,

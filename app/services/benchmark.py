@@ -14,6 +14,7 @@ from app.core.client import DeepSeekClient
 from app.core.config import DEEPSEEK_MODEL_PRO
 from app.core.prompts import BENCHMARK_AI_SYSTEM_PROMPT
 from app.core.token_utils import is_truncated, get_json_wrap_message, attempt_json_repair
+from app.services.rag import search_similar
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,23 @@ async def generate_benchmark_analysis(
 
     clause_structure = get_iso_clause_structure(target_standard)
 
+    rag_context_text = ""
+    query_parts = [target_standard, improvement_goal]
+    if document_type != "Unknown":
+        query_parts.append(document_type)
+    if department:
+        query_parts.append(department)
+    
+    try:
+        query = " ".join(query_parts)
+        similar_docs = await search_similar(query, top_k=3)
+        if similar_docs:
+            rag_context_text = "RELEVANT VECTOR DB CONTEXT:\n" + "\n".join(
+                f"- {doc['text']}" for doc in similar_docs
+            )
+    except Exception as e:
+        logger.warning(f"RAG search failed: {e}")
+
     # Compact output instructions instead of verbose schema (saves ~600 prompt tokens)
     compact_output_instructions = """
 Respond ONLY with a JSON object containing exactly these fields:
@@ -154,6 +172,9 @@ RESPOND ONLY WITH VALID JSON MATCHING THE SCHEMA.
 """
 
     contents_text = [prompt]
+
+    if rag_context_text:
+        contents_text.append(rag_context_text)
 
     if document_text:
         contents_text.append(

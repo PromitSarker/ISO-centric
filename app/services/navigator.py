@@ -8,6 +8,10 @@ from app.core.models import GeneratedDocument, NavigatorRequest
 from app.core.prompts import ISO_NAVIGATOR_SYSTEM_PROMPT
 from app.core.token_utils import is_truncated, get_text_wrap_message
 from app.services.deepseek import generate_with_deepseek
+from app.services.rag import search_similar
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def generate_iso_navigator_document(request: NavigatorRequest) -> GeneratedDocument:
@@ -61,6 +65,17 @@ Under section 5, organize the content with logical subheadings such as 5.1, 5.2,
 Use actionable language such as shall, must, and is responsible for.
 Do not include introductory or concluding filler.
 """
+
+    try:
+        query = f"{out_type} {spec_reqs}"
+        similar_docs = await search_similar(query, top_k=5)
+        if similar_docs:
+            rag_context = "\n\nRELEVANT VECTOR DB CONTEXT:\n" + "\n".join(
+                f"- {doc['text']}" for doc in similar_docs
+            )
+            prompt += rag_context
+    except Exception as e:
+        logger.warning(f"RAG search failed: {e}")
 
     context_length = len(org_context) + sum(len(str(v)) for v in extra_inputs.values())
     model = DEEPSEEK_MODEL_PRO if context_length > 1000 else DEEPSEEK_MODEL
