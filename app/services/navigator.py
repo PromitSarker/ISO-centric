@@ -61,6 +61,8 @@ Follow this structure exactly:
 6. Related Documentation
 7. Document Revision History
 
+IMPORTANT: If no specific ISO standard is explicitly requested in the context, you MUST prioritize and use the latest relative ISO standards applicable to this document.
+
 Under section 5, organize the content with logical subheadings such as 5.1, 5.2, and so on.
 Use actionable language such as shall, must, and is responsible for.
 Do not include introductory or concluding filler.

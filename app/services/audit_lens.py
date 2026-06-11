@@ -55,7 +55,7 @@ async def generate_audit_context(request: OrgContextRequest) -> AuditContextResp
     if not content:
         raise ValueError("Either text or a valid URL must be provided.")
 
-    prompt = f"Organization Information:\n{content}\n\nTask: Generate 3 audit framework options."
+    prompt = f"Organization Information:\n{content}\n\nTask: Generate 3 audit framework options.\nIMPORTANT: If no specific ISO standard is explicitly requested, you MUST prioritize and suggest frameworks based on the latest relative ISO standards applicable to the organization."
 
     try:
         similar_docs = await search_similar(content[:500], top_k=3)

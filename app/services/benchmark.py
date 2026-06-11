@@ -158,6 +158,8 @@ CLAUSE STRUCTURE TO EVALUATE:
 TASK:
 Perform comprehensive ISO compliance analysis and return structured JSON matching the schema.
 
+IMPORTANT: If no specific ISO standard is explicitly requested, you MUST prioritize and evaluate against the latest relative ISO standards based on the document's context.
+
 ANALYSIS REQUIREMENTS:
 1. OVERALL SCORING — overall_score (0-100), grade, compliance_percentage, effectiveness_percentage
 2. CLAUSE-BY-CLAUSE — clause_number, clause_title, status, compliance_percentage... (ONLY evaluate the top 5 most relevant clauses)
