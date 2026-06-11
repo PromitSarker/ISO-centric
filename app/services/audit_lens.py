@@ -58,7 +58,8 @@ async def generate_audit_context(request: OrgContextRequest) -> AuditContextResp
     prompt = f"Organization Information:\n{content}\n\nTask: Generate 5 audit framework options.\nIMPORTANT: You MUST prioritize and suggest frameworks based on the ISO standards explicitly mentioned in the RELEVANT VECTOR DB CONTEXT. Only if the vector context is insufficient should you fall back to suggesting the latest relative ISO standards from your general knowledge applicable to the organization."
 
     try:
-        similar_docs = await search_similar(content[:500], top_k=3)
+        query = f"ISO management system standards frameworks guidelines requirements for {content[:300]}"
+        similar_docs = await search_similar(query, top_k=5)
         if similar_docs:
             rag_context = "\n\nRELEVANT VECTOR DB CONTEXT:\n" + "\n".join(
                 f"- {doc['text']}" for doc in similar_docs

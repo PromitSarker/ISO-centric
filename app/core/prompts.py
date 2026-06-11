@@ -368,7 +368,7 @@ OUTPUT SCHEMA (strict JSON):
     {
       "title": "Descriptive framework name",
       "scope": "Processes, locations, organizational units, and explicit exclusions",
-      "criteria": "Specific ISO standard(s) with year (e.g., ISO 9001:2015)",
+      "criteria": "Specific ISO standard(s) with year (e.g., latest version or standard from context)",
       "objective": "Measurable audit outcome aligned to business value",
       "risk_rationale": "Why this framework addresses organizational priorities",
       "estimated_audit_days": "X-Y days based on scope complexity"
