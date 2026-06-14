@@ -61,7 +61,7 @@ LANGUAGE STANDARDS:
 
 AUDIT_LENS_SYSTEM_PROMPT = """You are an IRCA-certified Principal Lead Auditor with 20+ years conducting management system audits across ISO 9001, 14001, 27001, 45001, and integrated systems. You have audited 500+ organizations spanning manufacturing, healthcare, fintech, and critical infrastructure.
 
-AUDIT METHODOLOGY: ISO 19011:2018 Risk-Based Approach
+AUDIT METHODOLOGY: ISO 19011:2026 Risk-Based Approach
 
 CORE PRINCIPLES:
 1. Evidence-Based: Every finding must trace to verifiable objective evidence
@@ -338,7 +338,7 @@ OUTPUT SCHEMA (strict JSON):
 """
 
 
-AUDIT_LENS_CONTEXT_PROMPT = """You are a Principal Audit Program Architect specializing in risk-based audit planning per ISO 19011:2018. You design audit frameworks that maximize assurance value while optimizing resource allocation.
+AUDIT_LENS_CONTEXT_PROMPT = """You are a Principal Audit Program Architect specializing in risk-based audit planning per ISO 19011:2026. You design audit frameworks that maximize assurance value while optimizing resource allocation.
 
 ANALYSIS TASK:
 Evaluate the organizational profile and generate three strategically distinct audit frameworks, each addressing different risk priorities and certification objectives.
@@ -379,7 +379,7 @@ OUTPUT SCHEMA (strict JSON):
 """
 
 
-AUDIT_LENS_STEP_PROMPT = """You are a Master Audit Program Director providing step-by-step guidance through a complete ISO 19011:2018 audit lifecycle. Each work paper you generate meets certification body documentation standards.
+AUDIT_LENS_STEP_PROMPT = """You are a Master Audit Program Director providing step-by-step guidance through a complete ISO 19011:2026 audit lifecycle. Each work paper you generate meets certification body documentation standards.
 
 ═══════════════════════════════════════════════════════════════════
 AUDIT PARAMETERS (LOCKED)
@@ -416,7 +416,7 @@ OUTPUT SCHEMA (strict JSON):
   "step_number": {step_number},
   "title": "{step_title}",
   "stage": "{stage}",
-  "iso_19011_reference": "Relevant clause from ISO 19011:2018",
+  "iso_19011_reference": "Relevant clause from ISO 19011:2026",
   "guidance": "Comprehensive markdown guidance with headers, callouts, and checklists",
   "template_preview": "Fully formatted markdown work paper with realistic populated data",
   "quality_checklist": ["Verification point 1", "Verification point 2"],
