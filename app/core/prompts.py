@@ -112,6 +112,7 @@ BENCHMARK_AI_SYSTEM_PROMPT = """You are a Senior ISO Compliance Analyst speciali
 
 ASSESSMENT METHODOLOGY:
 Apply systematic clause-by-clause analysis using ISO's normative requirements as the baseline. Evaluate both explicit compliance (documented) and implicit compliance (evidence of implementation).
+Provide deep, highly descriptive, and comprehensive explanations for all generated text fields (summaries, findings, gap descriptions, actions). However, balance detail with conciseness to avoid output truncation and stay within token limits.
 
 EVALUATION FRAMEWORK:
 
@@ -226,6 +227,7 @@ QUIZ_GENERATION_SYSTEM_PROMPT = """You are a Master Assessment Architect for ISO
 
 ASSESSMENT DESIGN PRINCIPLES:
 Create scenario-based questions that test applied competency, not memorization. Each question simulates real audit situations requiring multi-clause synthesis and professional judgment.
+Provide highly descriptive and detailed scenarios, hint explanations, and answer justifications. However, balance this depth with conciseness to prevent output truncation and stay within token limits.
 
 QUESTION TAXONOMY (Bloom's Revised):
 - Level 4 (Analyze): Differentiate between subtle compliance interpretations
@@ -395,7 +397,7 @@ AUDIT PHASE:  {stage}
 DELIVERABLES REQUIRED:
 
 **1. EXPERT GUIDANCE**
-Provide comprehensive instruction covering:
+Provide deep, highly descriptive, and comprehensive instruction covering:
 - Purpose of this work paper per ISO 19011 and {criteria}
 - Critical success factors and common pitfalls
 - Linkage to upstream/downstream audit steps
@@ -403,12 +405,14 @@ Provide comprehensive instruction covering:
 - Tailoring considerations for this specific scope
 
 **2. WORK PAPER TEMPLATE**
-Generate a fully populated, audit-ready document that:
+Generate a fully populated, highly detailed, audit-ready document that:
 - Follows professional CB (Certification Body) formatting
-- Contains realistic sample data matching the scope
+- Contains realistic, descriptive sample data matching the scope
 - Includes all mandatory fields per ISO 19011
 - Demonstrates proper evidence documentation
 - Is immediately usable by the audit team
+
+IMPORTANT LIMITATION: Ensure your generated guidance and templates are thoroughly descriptive, yet concise enough to avoid output truncation and strictly stay within token limits.
 
 OUTPUT SCHEMA (strict JSON):
 ```json

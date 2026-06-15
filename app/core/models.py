@@ -361,6 +361,7 @@ class IsoSuggestionOption(BaseModel):
     relevance: str = Field(..., description="Why this standard is relevant to the requested category")
     documents: List[dict] = Field(default_factory=list, description="List of recommended documents with title, clause, and type='document'")
     records: List[dict] = Field(default_factory=list, description="List of recommended records with title, clause, and type='record'")
+    improvements: List[str] = Field(default_factory=list, description="5 suggestions on what can be done to improve based on context to align with the standard")
 
 
 class IsoSuggestionResponse(BaseModel):

@@ -172,11 +172,13 @@ Provide 3 to 5 relevant ISO standards. For each, give the standard code, title, 
         RULES:
         - Return ONLY valid JSON, nothing else. No markdown wrappers like ```json.
         - The output MUST be a JSON object with a single key "suggestions" containing a list of objects.
-        - Each object must have the exact keys: "standard", "title", "relevance".
+        - Each object must have the exact keys: "standard", "title", "relevance", "improvements".
+        - "improvements" must be a list of exactly 5 specific suggestions on what the user can do to improve, based on the provided context or file, to align with the standard.
         - Additionally, for each suggested standard include two arrays: "documents" and "records".
-            - "documents" is a list of objects with keys: "title", "clause", "type" (value must be "document").
-            - "records" is a list of objects with keys: "title", "clause", "type" (value must be "record").
+            - "documents" is a list of objects with keys: "title", "clause", "type" (value must be "document"). You MUST provide ALL relevant clauses for the standard, do not limit to just 2.
+            - "records" is a list of objects with keys: "title", "clause", "type" (value must be "record"). You MUST provide ALL relevant clauses for the standard, do not limit to just 2.
         - If there are no recommended documents or records for a standard, return an empty list for that field.
+        - Provide highly descriptive and detailed explanations for relevance and improvements, but remain concise enough to prevent output truncation and stay within token limits.
         
 IMPORTANT: You MUST prioritize and suggest the ISO standards explicitly mentioned in the RELEVANT VECTOR DB CONTEXT. Only if the vector context is insufficient should you fall back to suggesting the latest relative ISO standards from your general knowledge.
 """
@@ -254,7 +256,9 @@ Provide 3 to 5 relevant ISO standards. For each, give the standard code, title, 
         RULES:
         - Return ONLY valid JSON, nothing else. No markdown wrappers like ```json.
         - The output MUST be a JSON object with a single key "suggestions" containing a list of objects.
-        - Each object must have the exact keys: "standard", "title", "relevance".
+        - Each object must have the exact keys: "standard", "title", "relevance", "improvements".
+        - "improvements" must be a list of exactly 5 specific suggestions on what the user can do to improve, based on the provided details, to align with the standard.
+        - Provide highly descriptive and detailed explanations for relevance and improvements, but remain concise enough to prevent output truncation and stay within token limits.
         
 IMPORTANT: You MUST prioritize and suggest the ISO standards explicitly mentioned in the RELEVANT VECTOR DB CONTEXT. Only if the vector context is insufficient should you fall back to suggesting the latest relative ISO standards from your general knowledge.
 """
