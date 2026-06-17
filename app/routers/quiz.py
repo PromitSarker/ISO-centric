@@ -5,13 +5,21 @@ from typing import List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-from app.core.models import FlashcardResponse, QuizFeedbackRequest, QuizFeedbackResponse, QuizResponse
+from app.core.models import (
+    FlashcardResponse,
+    QuizFeedbackRequest,
+    QuizFeedbackResponse,
+    QuizResponse,
+    FollowupQuestionRequest,
+    FollowupQuestionResponse,
+)
 from app.services.benchmark import extract_text_from_file
 from app.services.quiz import (
     generate_flashcards,
     generate_quiz,
     generate_quiz_feedback,
     generate_quiz_stream,
+    generate_followup_question,
 )
 
 router = APIRouter(prefix="/api/v1/quiz", tags=["Quiz Generator"])
@@ -170,5 +178,28 @@ async def feedback_endpoint(request: QuizFeedbackRequest):
             results=request.results,
         )
         return QuizFeedbackResponse(**result)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/followup", response_model=FollowupQuestionResponse)
+async def generate_followup_endpoint(request: FollowupQuestionRequest):
+    """
+    Followup Question Generator — create small, related followup questions from the given JSON context.
+
+    **Input:**
+    - `context`: JSON object describing the topic/context.
+    - `num_questions`: Number of followup questions to generate.
+
+    **Output:**
+    - `questions`: A list of thought-provoking followup question strings.
+    - `generated_at`: ISO 8601 timestamp.
+    """
+    try:
+        result = await generate_followup_question(
+            context=request.context,
+            num_questions=request.num_questions,
+        )
+        return FollowupQuestionResponse(**result)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

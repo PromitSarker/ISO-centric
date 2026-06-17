@@ -11,6 +11,7 @@ from app.core.prompts import (
     FLASHCARD_GENERATION_SYSTEM_PROMPT,
     QUIZ_FEEDBACK_SYSTEM_PROMPT,
     QUIZ_GENERATION_SYSTEM_PROMPT,
+    FOLLOWUP_QUESTION_SYSTEM_PROMPT,
 )
 from app.core.token_utils import is_truncated, get_json_wrap_message
 from app.services.deepseek import analyze_with_deepseek, analyze_stream_with_deepseek
@@ -401,5 +402,47 @@ async def generate_quiz_feedback(
         result["_was_truncated"] = True
         if "mentor_closing_note" in result:
             result["mentor_closing_note"] += " [Note: Feedback was truncated due to length limits.]"
+
+    return result
+
+
+FOLLOWUP_QUESTION_RESPONSE_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "questions": {
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "generated_at": {"type": "string"},
+    },
+    "required": ["questions"],
+}
+
+
+async def generate_followup_question(
+    context: Dict[str, Any],
+    num_questions: int = 1,
+) -> Dict[str, Any]:
+    """Generate small related followup questions based on the context."""
+    
+    context_payload = _compact_context_for_prompt(context)
+    
+    prompt = (
+        f"Context for the follow-up questions:\n{context_payload}\n\n"
+        f"Please provide exactly {num_questions} small, thought-provoking follow-up question(s)."
+    )
+
+    result, finish_reason = await analyze_with_deepseek(
+        prompt=prompt,
+        system_instruction=FOLLOWUP_QUESTION_SYSTEM_PROMPT,
+        response_schema=FOLLOWUP_QUESTION_RESPONSE_SCHEMA,
+        model=DEEPSEEK_MODEL_PRO,
+        max_tokens=500,
+    )
+    
+    result.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
+    
+    if is_truncated(finish_reason):
+        result["_was_truncated"] = True
 
     return result

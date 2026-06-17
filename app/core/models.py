@@ -394,3 +394,20 @@ class AuditLensStepResponse(BaseModel):
     guidance: str = Field(..., description="Educational instructions (AI Guidance).")
     template_preview: str = Field(..., description="Customized, realistic example of the work paper.")
     next_step_available: bool
+
+
+# ---------------------------------------------------------------------------
+# Followup Question Models
+# ---------------------------------------------------------------------------
+
+class FollowupQuestionRequest(BaseModel):
+    context: Dict[str, Any] = Field(
+        ...,
+        description="JSON object containing the context for which a followup question is needed.",
+    )
+    num_questions: int = Field(1, ge=1, le=20, description="Number of followup questions to generate.")
+
+
+class FollowupQuestionResponse(BaseModel):
+    questions: List[str]
+    generated_at: str
