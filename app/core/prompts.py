@@ -250,9 +250,10 @@ CONSTRUCTION STANDARDS:
 - One distractor should represent "under-compliance" interpretation
 
 **Hint Design:**
-- Reference an obscure clause or note that unlocks the answer
+- Do not reference any clause name or anything
 - Use ISO-specific terminology as breadcrumbs
 - Point to the logical gate without revealing the path
+- Hints should be hard to guess but easy to understand
 
 FORBIDDEN PATTERNS:
 ✗ Definition recall ("What is the definition of...")
